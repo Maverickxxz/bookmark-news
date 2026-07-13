@@ -1,0 +1,144 @@
+/* Evidenziazione dell'ultima notizia letta — generica, multi-sito.
+   Il colore accento è impostato a runtime dal content script tramite le
+   variabili --hdb-accent / --hdb-accent-soft / --hdb-accent-mid. */
+
+.hdb-marker {
+  position: relative !important;
+  background-color: var(--hdb-accent-soft, #fff4f4) !important;
+  box-shadow: inset 5px 0 0 0 var(--hdb-accent, #df151c),
+    0 0 0 2px var(--hdb-accent-mid, #f3a9ab) !important;
+  border-radius: 8px !important;
+  transition: box-shadow 0.2s ease;
+}
+
+.hdb-marker .hdb-label {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 6;
+  background: var(--hdb-accent, #df151c);
+  color: #ffffff;
+  font: 700 9px/1.5 -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.hdb-marker.hdb-flash {
+  animation: hdb-flash-anim 1s ease;
+}
+
+@keyframes hdb-flash-anim {
+  0%,
+  100% {
+    box-shadow: inset 5px 0 0 0 var(--hdb-accent, #df151c),
+      0 0 0 2px var(--hdb-accent-mid, #f3a9ab);
+  }
+  50% {
+    box-shadow: inset 5px 0 0 0 var(--hdb-accent, #df151c),
+      0 0 0 7px var(--hdb-accent-mid, #f3a9ab);
+  }
+}
+
+/* -------- pop-up in pagina (toast) -------- */
+
+.hdb-toast {
+  position: fixed !important;
+  right: 18px !important;
+  bottom: 18px !important;
+  z-index: 2147483000 !important;
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 11px !important;
+  max-width: 320px !important;
+  margin: 0 !important;
+  padding: 12px 14px !important;
+  background: #ffffff !important;
+  color: #1c1c1e !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22) !important;
+  font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif !important;
+  font-size: 13px !important;
+  line-height: 1.35 !important;
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.25s ease, transform 0.25s ease !important;
+}
+
+.hdb-toast.hdb-toast-in {
+  opacity: 1 !important;
+  transform: translateY(0) !important;
+}
+
+.hdb-toast.hdb-toast-out {
+  opacity: 0 !important;
+  transform: translateY(16px) !important;
+}
+
+.hdb-toast .hdb-toast-num {
+  flex: none !important;
+  min-width: 34px !important;
+  height: 34px !important;
+  padding: 0 6px !important;
+  border-radius: 17px !important;
+  background: var(--hdb-accent, #df151c) !important;
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  font-size: 15px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+}
+
+.hdb-toast .hdb-toast-body {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 3px !important;
+  padding-top: 2px !important;
+}
+
+.hdb-toast .hdb-toast-title {
+  color: #2b2b2e !important;
+  font-weight: 600 !important;
+}
+
+.hdb-toast .hdb-toast-go {
+  align-self: flex-start !important;
+  background: none !important;
+  border: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  cursor: pointer !important;
+  color: var(--hdb-accent, #df151c) !important;
+  font-family: inherit !important;
+  font-weight: 700 !important;
+  font-size: 12px !important;
+  text-align: left !important;
+}
+
+.hdb-toast .hdb-toast-go:hover {
+  text-decoration: underline !important;
+}
+
+.hdb-toast .hdb-toast-close {
+  flex: none !important;
+  align-self: flex-start !important;
+  background: none !important;
+  border: 0 !important;
+  cursor: pointer !important;
+  color: #9a9aa0 !important;
+  font-size: 18px !important;
+  line-height: 1 !important;
+  padding: 0 2px !important;
+  margin: -2px -2px 0 0 !important;
+}
+
+.hdb-toast .hdb-toast-close:hover {
+  color: #4a4a4f !important;
+}

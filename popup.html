@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="popup.css" />
+    <title>Segnalibro notizie</title>
+  </head>
+  <body>
+    <header class="hdb-head">
+      <span id="dot" class="hdb-dot"></span>
+      <h1 id="head-title">Segnalibro notizie</h1>
+    </header>
+
+    <!-- Stato quando siamo sulla home di un sito supportato -->
+    <section id="onhome" class="hidden">
+      <div class="count-box">
+        <div id="count" class="count">0</div>
+        <div id="count-label" class="count-label">notizie nuove da leggere</div>
+      </div>
+
+      <div id="marker-info" class="marker-info hidden">
+        <div class="marker-cap">Ultima notizia letta</div>
+        <div id="marker-title" class="marker-title"></div>
+      </div>
+
+      <div id="notfound" class="notfound hidden">
+        L'ultima notizia letta non è più nell'elenco caricato: probabilmente sono
+        uscite molte notizie. Tutte quelle mostrate risultano da leggere.
+      </div>
+
+      <div class="actions">
+        <button id="btn-scroll" class="btn btn-secondary">Vai all'ultima letta</button>
+        <button id="btn-read" class="btn btn-primary">Segna tutte come lette</button>
+      </div>
+    </section>
+
+    <!-- Stato quando NON siamo sulla home di un sito supportato -->
+    <section id="offhome" class="hidden">
+      <p class="off-msg">Apri la home di uno dei siti supportati:</p>
+      <div id="site-links" class="site-links"></div>
+    </section>
+
+    <!-- Stato quando l'estensione è disattivata dalle impostazioni -->
+    <section id="disabled" class="hidden">
+      <p class="off-msg">Estensione disattivata.</p>
+      <button id="btn-settings-d" class="btn btn-primary">Apri impostazioni</button>
+    </section>
+
+    <footer class="hdb-foot">
+      <button id="btn-settings" class="link-btn" type="button">⚙ Impostazioni</button>
+      <span>Il segnalibro avanza quando <b>riapri</b> il sito; col <b>refresh</b> resta fermo.</span>
+    </footer>
+
+    <script src="sites.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

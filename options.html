@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="options.css" />
+    <title>Segnalibro notizie — Impostazioni</title>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="head">
+        <span class="dot"></span>
+        <h1>Segnalibro notizie — Impostazioni</h1>
+      </header>
+
+      <section class="card">
+        <h2>Generale</h2>
+
+        <label class="row">
+          <span class="row-txt">
+            <b>Estensione attiva</b>
+            <small>Evidenziazione, conteggio e badge sui siti supportati.</small>
+          </span>
+          <input type="checkbox" id="opt-enabled" class="switch" />
+        </label>
+
+        <label class="row">
+          <span class="row-txt">
+            <b>Pop-up in pagina</b>
+            <small>Mostra il messaggio con il numero di notizie nuove al caricamento.</small>
+          </span>
+          <input type="checkbox" id="opt-toast" class="switch" />
+        </label>
+
+        <label class="row">
+          <span class="row-txt">
+            <b>Raccogli i miei interessi</b>
+            <small>Salva categoria e parole chiave degli articoli che apri.
+              Solo sul tuo dispositivo: non viene inviato nulla.</small>
+          </span>
+          <input type="checkbox" id="opt-track" class="switch" />
+        </label>
+      </section>
+
+      <section class="card">
+        <h2>I tuoi interessi <span class="muted">(solo in locale)</span></h2>
+        <p class="muted" id="track-total">Articoli registrati: 0</p>
+
+        <div class="export-row">
+          <button id="export-json" class="btn-export" title="Articoli visitati + parole chiave + categorie in un file JSON">Esporta tutto (JSON)</button>
+          <button id="export-csv" class="btn-export" title="Articoli visitati in formato CSV per foglio di calcolo">Articoli in CSV</button>
+        </div>
+
+        <div class="cols">
+          <div>
+            <h3>Categorie principali</h3>
+            <ul id="cat-list" class="chips"></ul>
+          </div>
+          <div>
+            <h3>Parole chiave principali</h3>
+            <ul id="kw-list" class="chips"></ul>
+          </div>
+        </div>
+
+        <h3 class="opened-h">
+          Articoli aperti registrati
+          <span class="muted small" id="opened-note"></span>
+        </h3>
+        <div id="opened-list" class="opened"></div>
+
+        <button id="btn-reset" class="btn-danger">Azzera tutti i dati raccolti</button>
+        <p class="muted small">
+          Questi dati restano nel tuo browser (storage locale dell'estensione) e non
+          vengono trasmessi da nessuna parte. Puoi eliminare un singolo articolo con la
+          × oppure azzerare tutto.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>Parole da ignorare</h2>
+        <p class="muted small">
+          Le parole elencate qui non verranno più salvate tra le parole chiave. Aggiungile
+          cliccando la <b>×</b> su una parola chiave qui sopra, oppure scrivendole qui sotto
+          (separate da virgola). Rimuoverle da qui non ripristina i dati già cancellati.
+        </p>
+        <div class="add-row">
+          <input type="text" id="ignore-input" placeholder="es. sempre, fino, verso" />
+          <button id="ignore-add" class="btn-add">Aggiungi</button>
+        </div>
+        <ul id="ignore-list" class="chips"></ul>
+        <div class="export-row">
+          <button id="export-ignore" class="btn-export" title="Scarica l'elenco delle parole ignorate (una per riga, file .txt)">Esporta parole ignorate (TXT)</button>
+        </div>
+        <p class="muted small">
+          Esporta l'elenco per condividerlo: i file raccolti potranno essere uniti alle
+          liste predefinite dell'estensione in una versione futura.
+        </p>
+      </section>
+    </div>
+
+    <script src="sites.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>

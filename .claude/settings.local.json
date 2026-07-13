@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell($ua = \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/120.0 Safari/537.36\"; $out = \"C:\\\\Users\\\\black\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-black-Desktop-hdblog-estensione\\\\16ebecaf-cf15-4f98-a210-5b914b750a55\\\\scratchpad\\\\hdblog.html\"; try { Invoke-WebRequest -Uri \"https://www.hdblog.it/\" -OutFile $out -UserAgent $ua -Headers @{\"Accept-Language\"=\"it-IT,it;q=0.9\"} -TimeoutSec 30; Write-Output \"OK saved\"; \\(Get-Item $out\\).Length } catch { Write-Output \"ERROR: $\\($_.Exception.Message\\)\" })",
+      "Bash(node *)",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('manifest.json','utf8'\\)\\); console.log\\('manifest.json OK'\\)\")",
+      "WebFetch(domain:www.tomshw.it)"
+    ]
+  }
+}
