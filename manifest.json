@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Segnalibro notizie",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Evidenzia sui siti di notizie l'ultima notizia che avevi già visto e conta quante notizie nuove sono uscite dall'ultima volta. Multi-sito.",
   "permissions": ["storage", "activeTab"],
   "options_ui": {

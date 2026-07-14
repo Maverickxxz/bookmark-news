@@ -7,25 +7,35 @@ sono uscite. Multi-sito, con segnalibro e colore indipendenti per ogni sito.
 ## Cosa fa (logica del segnalibro)
 
 **Doppio segnalibro** (registro a scorrimento). Per sito in `chrome.storage.local`: `marker`
-(1° segnalibro, evidenziato) e `pending` (2° segnalibro). **OGNI** caricamento della home avanza
-di un passo: NON si distingue refresh da apertura (scelta esplicita dell'utente).
+(1° segnalibro, evidenziato), `pending` (2° segnalibro) e `reached` (flag: nella visita il
+marker è stato VISTO nel viewport — `IntersectionObserver` threshold 0.5 in `watchMarkerReached`,
+riagganciato a ogni `applyHighlight` perché il sito può sostituire il nodo). NON si distingue
+refresh da apertura (scelta esplicita dell'utente), ma l'avanzamento è **condizionato**:
 
 | Caso | Azione |
 |------|--------|
 | Prima volta in assoluto | `marker = pending = più recente` |
-| Ogni caricamento successivo (apertura o refresh) | `marker = pending precedente`; `pending = più recente` |
+| Caricamento con marker RAGGIUNTO nella visita precedente (`reached=true`) | `marker = pending precedente`; `pending = più recente` |
+| Caricamento con marker MAI raggiunto (`reached` falsy) | `marker` RESTA FERMO; `pending = più recente` |
 
-Le notizie "non lette" sono quelle SOPRA il marker; il conteggio = indice del marker nel feed.
-Effetto "lag di un caricamento": apri e vedi le nuove sopra il segno, il caricamento dopo le
-raggiunge. Verificato con `scratchpad/test-marker4.js`.
+Ogni caricamento azzera `reached` (va ri-raggiunto nella visita). Le notizie "non lette" sono
+quelle SOPRA il marker; il conteggio = indice del marker nel feed. Effetto "lag di un
+caricamento" nel flusso normale (marker visibile): apri e vedi le nuove sopra il segno, il
+caricamento dopo le raggiunge. Verificato con `scratchpad/test-marker-reached.js`
+(registro + condizione `reached`, inclusa la migrazione).
 Storia: v0.0.7 invertito (fraintendimento) → v0.0.8 registro ripristinato e poi semplificato:
-ogni caricamento avanza, nessuna distinzione refresh/apertura (rimosso `getNavType`).
+ogni caricamento avanza, nessuna distinzione refresh/apertura (rimosso `getNavType`) →
+v0.3.1 avanzamento SOLO se il marker era stato raggiunto: prima, se l'ultima letta stava oltre
+il lazy-load e non la si raggiungeva mai, dopo due caricamenti il marker diventava "l'ultima
+notizia caricata" e la posizione vera era persa (bug segnalato dall'utente). La migrazione è
+implicita: per gli utenti esistenti `reached` è assente = falsy → al primo load post-update il
+marker non avanza (conservativo), poi il flusso riparte normale.
 
 ## File
 
 - `manifest.json` — MV3; `matches` elenca gli host; carica `sites.js` poi `content.js`.
 - `sites.js` — **registro dei siti** (`NEWS_SITES`) + helper condivisi (`findSiteForUrl`, `isSiteHome`). Caricato sia dai content script sia dal popup.
-- `content.js` — logica generica (usa la config del sito attivo). Storage per-sito: `marker_<id>`, `pending_<id>`, `initialized_<id>`. Mostra anche un toast in pagina (`renderToast`) col numero di notizie nuove, solo quando `unread > 0`; auto-dismiss 7s, una volta per caricamento. Sulle pagine ARTICOLO chiama `trackArticle()`, che NON scrive: invia l'entry al service worker.
+- `content.js` — logica generica (usa la config del sito attivo). Storage per-sito: `marker_<id>`, `pending_<id>`, `initialized_<id>`, `reached_<id>`. Mostra anche un toast in pagina (`renderToast`) col numero di notizie nuove, solo quando `unread > 0`; auto-dismiss 7s, una volta per caricamento. Sulle pagine ARTICOLO chiama `trackArticle()`, che NON scrive: invia l'entry al service worker.
 - `content.css` — evidenziazione + toast in basso a destra; colore per sito via variabili `--hdb-accent*` impostate da JS.
 - `background.js` — imposta il badge (numero + colore) per tab; riceve `trackArticle` e scrive gli interessi in modo **serializzato** (`trackChain`) per evitare race tra schede; qui stanno l'**anti-doppioni** (un articolo si registra una sola volta per `sito+chiave` = `entryId`; riaprirlo aggiorna solo il `ts` di ultima apertura, senza ricontare cat/keyword), gli aggregati e il cap a 1000. `dedupeInterests` è la migrazione una-tantum (a onInstalled + avvio SW) che ripulisce i doppioni storici e ricostruisce i conteggi dalla lista deduplicata (idempotente).
 - `popup.html/js/css` — stato + pulsanti (vai all'ultima letta / segna tutte come lette) + link Impostazioni + stato "disattivata".

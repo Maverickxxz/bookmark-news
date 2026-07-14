@@ -4,12 +4,17 @@
  *
  * Logica del segnalibro — DOPPIO SEGNALIBRO (registro a scorrimento), uguale per ogni sito:
  *  - PRIMA VOLTA -> marker = pending = ultima notizia attuale.
- *  - OGNI caricamento successivo (apertura O refresh: è la stessa cosa) -> avanza di un passo:
+ *  - Caricamento successivo (apertura O refresh: è la stessa cosa), SE nella visita
+ *    precedente il segnalibro era stato RAGGIUNTO (visto nel viewport) -> avanza di un passo:
  *      marker = pending precedente; pending = ultima notizia attuale.
+ *  - Se invece il segnalibro NON era mai stato raggiunto (es. oltre il lazy-load) ->
+ *      marker RESTA FERMO; si aggiorna solo pending. Così l'ultima letta vera non si
+ *      perde mai, anche se sta molti scroll più in basso.
  *
  * Per sito:
  *   marker  = notizia evidenziata ora (1° segnalibro)
  *   pending = ultima notizia vista al caricamento precedente (2° segnalibro)
+ *   reached = flag: in questa visita l'utente è arrivato a vedere il marker
  */
 
 (function () {
@@ -38,6 +43,7 @@
         marker: "marker_" + site.id,
         pending: "pending_" + site.id,
         init: "initialized_" + site.id,
+        reached: "reached_" + site.id,
       }
     : null;
 
@@ -581,6 +587,39 @@
 
   // -------- evidenziazione --------
 
+  // "Raggiunto" = l'elemento del segnalibro è entrato nel viewport durante QUESTA
+  // visita (l'utente è arrivato a vederlo). Solo allora, al caricamento successivo,
+  // il segnalibro può avanzare (vedi init()). Senza questa condizione, se l'ultima
+  // letta sta oltre il lazy-load, l'avanzamento automatico la sostituirebbe con la
+  // notizia più recente del caricamento precedente, perdendo la posizione vera.
+  let reachedThisVisit = false;
+  let reachObserver = null;
+
+  function watchMarkerReached(el) {
+    if (reachedThisVisit) return;
+    try {
+      if (reachObserver) reachObserver.disconnect();
+      reachObserver = new IntersectionObserver(
+        (entries) => {
+          if (reachedThisVisit) return;
+          for (const en of entries) {
+            if (en.isIntersecting) {
+              reachedThisVisit = true;
+              setStore({ [K.reached]: true });
+              if (reachObserver) {
+                reachObserver.disconnect();
+                reachObserver = null;
+              }
+              break;
+            }
+          }
+        },
+        { threshold: 0.5 }
+      );
+      reachObserver.observe(el);
+    } catch (e) {}
+  }
+
   function clearHighlight() {
     document.querySelectorAll(".hdb-marker").forEach((e) => {
       e.classList.remove("hdb-marker");
@@ -611,6 +650,8 @@
         lab.textContent = "Ultima letta";
         el.appendChild(lab);
       }
+      // Ri-agganciato a ogni applicazione: il sito può sostituire il nodo (re-render).
+      watchMarkerReached(el);
     } else {
       found = false;
       unread = feed.length; // segnalibro fuori dalla lista caricata: tutte da leggere
@@ -686,11 +727,17 @@
     let el = document.querySelector(".hdb-marker");
     // Se il segnalibro non è ancora nel DOM (notizia sotto la piega non ancora
     // caricata), scendi un po' alla volta per forzarne il caricamento, poi
-    // ri-applica la classe e fermati appena compare.
+    // ri-applica la classe e fermati appena compare. Il segnalibro può stare
+    // MOLTO in basso (tante notizie accumulate): si smette solo quando la pagina
+    // non scende più da un po' (fondo raggiunto e niente di nuovo caricato) o a
+    // un tetto massimo di sicurezza.
     if (!el && state.markerKey) {
-      for (let i = 0; i < 25 && !el; i++) {
+      let stuck = 0;
+      for (let i = 0; i < 120 && !el && stuck < 8; i++) {
+        const before = window.scrollY;
         window.scrollBy(0, Math.max(600, Math.round(window.innerHeight * 0.9)));
         await sleep(200);
+        stuck = window.scrollY === before ? stuck + 1 : 0;
         reapplyIfChanged();
         el = document.querySelector(".hdb-marker");
       }
@@ -707,7 +754,13 @@
     const feed = getFeedArticles();
     if (!feed.length) return lastStatus;
     state.markerKey = feed[0].key;
-    setStore({ [K.marker]: feed[0].key, [K.pending]: feed[0].key, [K.init]: true });
+    reachedThisVisit = true; // sei in pari per definizione
+    setStore({
+      [K.marker]: feed[0].key,
+      [K.pending]: feed[0].key,
+      [K.init]: true,
+      [K.reached]: true,
+    });
     return applyHighlight();
   }
 
@@ -729,10 +782,12 @@
       };
     }
     if (!status.found && status.total > 0) {
+      // Il segnalibro è più in basso, oltre le notizie già caricate: il bottone
+      // funziona lo stesso (scrollToMarker forza il lazy-load scendendo a step).
       return {
         num: status.total > 99 ? "99+" : String(status.total),
-        title: "notizie nuove (l'ultima letta non è più in lista)",
-        canGo: false,
+        title: "notizie nuove (l'ultima letta è più in basso)",
+        canGo: true,
       };
     }
     return null; // sei aggiornato: niente toast
@@ -880,7 +935,7 @@
     }
 
     const currentNewest = feed[0].key;
-    let store = await getStore([K.marker, K.pending, K.init]);
+    let store = await getStore([K.marker, K.pending, K.init, K.reached]);
 
     // Migrazione dal formato v1 (solo hdblog, chiavi senza suffisso).
     if (!store[K.init] && site.id === "hdblog") {
@@ -899,14 +954,28 @@
       // prima volta in assoluto: entrambi i segnalibri sull'ultima notizia
       marker = currentNewest;
       pending = currentNewest;
-    } else {
-      // ogni caricamento (apertura o refresh, indifferente) avanza di un passo:
-      // il marker prende il 2° segnalibro precedente; il 2° diventa l'ultima attuale
+    } else if (store[K.reached]) {
+      // Nella visita precedente il segnalibro era stato RAGGIUNTO (visto sullo
+      // schermo): avanza di un passo — il marker prende il 2° segnalibro
+      // precedente; il 2° diventa l'ultima attuale.
       marker = store[K.pending] || currentNewest;
+      pending = currentNewest;
+    } else {
+      // Segnalibro MAI raggiunto nella visita precedente (es. oltre il lazy-load,
+      // o troppe notizie accumulate): il marker NON avanza — l'ultima letta vera
+      // va mantenuta, anche per molti caricamenti di fila. Solo pending si
+      // aggiorna, così quando l'utente raggiungerà il segno il passo successivo
+      // riparte dalla notizia più recente dell'ULTIMA visita in cui ha recuperato.
+      marker = store[K.marker] || store[K.pending] || currentNewest;
       pending = currentNewest;
     }
 
-    await setStore({ [K.marker]: marker, [K.pending]: pending, [K.init]: true });
+    await setStore({
+      [K.marker]: marker,
+      [K.pending]: pending,
+      [K.init]: true,
+      [K.reached]: false, // si riparte: andrà ri-raggiunto in questa visita
+    });
     state.markerKey = marker;
 
     applyHighlight();
