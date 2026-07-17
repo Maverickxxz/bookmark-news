@@ -62,7 +62,8 @@ function renderOnHome(status, site) {
   setAccent(site ? site.color : "#df151c");
 
   const unread = status.unread | 0;
-  $("count").textContent = unread > 99 ? "99+" : String(unread);
+  // approx = limite inferiore (segnalibro oltre il feed): "40+" invece di "42".
+  $("count").textContent = formatUnread(unread, !status.found && status.approx);
   $("count-label").textContent =
     unread === 1 ? "notizia nuova da leggere" : "notizie nuove da leggere";
 

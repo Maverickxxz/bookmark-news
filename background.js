@@ -100,7 +100,18 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
   if (msg.type === "setBadge" && sender.tab) {
     const tabId = sender.tab.id;
     const count = msg.count | 0;
-    const text = count > 0 ? (count > 99 ? "99+" : String(count)) : "";
+    // approx = limite inferiore (segnalibro oltre il feed caricato o oltre il
+    // tetto delle pagine archivio): decina in giù + "+", es. 42 -> "40+".
+    // Stessa logica di formatUnread in sites.js (il SW non carica sites.js).
+    let text = "";
+    if (count > 0) {
+      if (msg.approx) {
+        const base = Math.floor(count / 10) * 10;
+        text = (base < 10 ? count : Math.min(990, base)) + "+";
+      } else {
+        text = count > 99 ? "99+" : String(count);
+      }
+    }
     try {
       chrome.action.setBadgeBackgroundColor({
         color: msg.color || "#df151c",

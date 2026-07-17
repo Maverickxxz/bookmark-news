@@ -31,11 +31,45 @@ notizia caricata" e la posizione vera era persa (bug segnalato dall'utente). La 
 implicita: per gli utenti esistenti `reached` è assente = falsy → al primo load post-update il
 marker non avanza (conservativo), poi il flusso riparte normale.
 
+**Ricerca nell'archivio (v0.3.2)** — su hwupgrade il feed della home è FISSO (~42 notizie
+server-rendered, NESSUN lazy-load): se il marker era più vecchio, "Vai all'ultima letta"
+scrollava a vuoto senza mai trovarlo (bug segnalato dall'utente). Ora i siti possono dichiarare
+in `sites.js` `feedStatic: true` (inutile scrollare) e un blocco `archive`
+(`urlBase`/`pathRegex`/`maxPages`): se il marker non è nel feed, `scrollToMarker` imposta il
+flag `seek_<id>` = `{page, ts}` e naviga all'archivio ("Tutte le notizie",
+`/news/index.html` = pag. 1, `/news/indexZ.html` = pag. Z, ~30 notizie/pagina, stesso markup).
+Su ogni pagina archivio `initArchive()` cerca il marker: trovato → evidenzia+centra e rimuove
+il flag; assente → naviga alla pagina successiva. Il segnalibro NON avanza MAI sulle pagine
+archivio (`marker`/`pending`/`init` intatti); `reached` invece sì (stessa semantica della home:
+vista l'ultima letta, al load successivo della home si avanza). Sicurezze: TTL 5 min sul flag
+(ts originale conservato tra le pagine), tetto `maxPages` (40), auto-navigazione solo se
+`seek.page` = pagina corrente (una visita manuale all'archivio non viene dirottata; senza flag
+c'è solo evidenziazione passiva). Verificato con `scratchpad/test-archive-seek.js` + check dei
+selettori sull'HTML reale (chiavi archivio = chiavi home, ultima notizia della home presente
+in p1/p2).
+
+**Conteggio esatto dall'archivio (v0.3.3)** — quando il marker NON è nel feed, il vecchio
+fallback `unread = feed.length` era solo un limite inferiore: su hwupgrade (feed fisso di 42)
+il badge diceva "42 nuove" ogni giorno (segnalato dall'utente). Ora, sui siti con `archive`,
+`init()` avvia `refineUnread()` (asincrono): scarica le pagine archivio via `fetch` same-origin
+(nessun permesso extra), le parsa con `DOMParser` + `collectArticles` (la ex `getFeedArticles`
+generalizzata a root/baseUrl, stessi selettori) e conta la posizione del marker nella sequenza
+completa = numero VERO di non lette (verificato live: la sequenza archivio ricalca la home,
+home[i] ha esattamente i notizie sopra anche nell'archivio). Tetto `COUNT_MAX_PAGES` = 5
+(~150 notizie); oltre, o su errore rete/markup, resta il limite inferiore mostrato come "N+"
+arrotondato alla decina in giù (42 → "40+", scelta dell'utente; `formatUnread` in `sites.js`,
+logica replicata nel SW che non carica sites.js). Il toast ASPETTA l'esito del conteggio (flag
+`refining`, così non mostra prima "40+" e poi il numero vero); badge e popup mostrano intanto
+"N+". Cache in `count_<id>` = `{marker, newest, count, exact, ts}` (TTL 10 min, valida solo per
+la stessa coppia marker/più-recente) per non riscaricare l'archivio a ogni refresh. Dedup tra
+pagine contigue (il feed può scorrere tra un fetch e l'altro); "Segna tutte come lette" azzera
+il conteggio in corso. Verificato con `scratchpad/test-exact-count.js` (unit + live).
+
 ## File
 
 - `manifest.json` — MV3; `matches` elenca gli host; carica `sites.js` poi `content.js`.
 - `sites.js` — **registro dei siti** (`NEWS_SITES`) + helper condivisi (`findSiteForUrl`, `isSiteHome`). Caricato sia dai content script sia dal popup.
-- `content.js` — logica generica (usa la config del sito attivo). Storage per-sito: `marker_<id>`, `pending_<id>`, `initialized_<id>`, `reached_<id>`. Mostra anche un toast in pagina (`renderToast`) col numero di notizie nuove, solo quando `unread > 0`; auto-dismiss 7s, una volta per caricamento. Sulle pagine ARTICOLO chiama `trackArticle()`, che NON scrive: invia l'entry al service worker.
+- `content.js` — logica generica (usa la config del sito attivo). Storage per-sito: `marker_<id>`, `pending_<id>`, `initialized_<id>`, `reached_<id>`, `seek_<id>`, `count_<id>`. Mostra anche un toast in pagina (`renderToast`) col numero di notizie nuove, solo quando `unread > 0`; auto-dismiss 7s, una volta per caricamento. Sulle pagine ARTICOLO chiama `trackArticle()`, che NON scrive: invia l'entry al service worker.
 - `content.css` — evidenziazione + toast in basso a destra; colore per sito via variabili `--hdb-accent*` impostate da JS.
 - `background.js` — imposta il badge (numero + colore) per tab; riceve `trackArticle` e scrive gli interessi in modo **serializzato** (`trackChain`) per evitare race tra schede; qui stanno l'**anti-doppioni** (un articolo si registra una sola volta per `sito+chiave` = `entryId`; riaprirlo aggiorna solo il `ts` di ultima apertura, senza ricontare cat/keyword), gli aggregati e il cap a 1000. `dedupeInterests` è la migrazione una-tantum (a onInstalled + avvio SW) che ripulisce i doppioni storici e ricostruisce i conteggi dalla lista deduplicata (idempotente).
 - `popup.html/js/css` — stato + pulsanti (vai all'ultima letta / segna tutte come lette) + link Impostazioni + stato "disattivata".
@@ -84,6 +118,9 @@ dati già raccolti (aggregato `keywords` + `opened[].kw`). Verificato con `scrat
 
 - **hdblog** (`www.hdblog.it`): `article.newlist_normal` → `a.title_new`; id `nXXXXXX`. ✅ verificato.
 - **hwupgrade** (`www.hwupgrade.it`): `#news-container li.news-item` → `h3 a`; id prima di `.html`. ✅ verificato.
+  Feed home FISSO → `feedStatic: true` + archivio paginato `/news/index[Z].html` (`archive`), vedi
+  "Ricerca nell'archivio". (Nell'archivio compaiono anche notizie di `greenmove.hwupgrade.it`:
+  la chiave resta l'id numerico, coerente con la home.)
 - **hdmotori** (`www.hdmotori.it`): `trackingOnly` — nessun segnalibro, solo tracciamento articoli (rilevati via `og:type=article`, URL a solo slug senza id numerico).
 
 ## Da fare / in sospeso

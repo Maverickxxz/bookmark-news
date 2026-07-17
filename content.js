@@ -44,6 +44,8 @@
         pending: "pending_" + site.id,
         init: "initialized_" + site.id,
         reached: "reached_" + site.id,
+        seek: "seek_" + site.id,
+        count: "count_" + site.id,
       }
     : null;
 
@@ -96,10 +98,12 @@
     return null;
   }
 
-  // Notizie del feed, dalla più recente alla più vecchia.
-  function getFeedArticles() {
+  // Estrae le notizie (dalla più recente alla più vecchia) da un albero DOM:
+  // la pagina corrente oppure un documento parsato con DOMParser (conteggio
+  // esatto dall'archivio, vedi countUnreadInArchive).
+  function collectArticles(root, baseUrl) {
     let els = Array.prototype.slice.call(
-      document.querySelectorAll(site.articleSelector)
+      root.querySelectorAll(site.articleSelector)
     );
     if (site.newestLast) els.reverse();
 
@@ -114,7 +118,7 @@
       if (!key || seen.has(key)) continue;
       let url;
       try {
-        url = new URL(href, location.href).href;
+        url = new URL(href, baseUrl).href;
       } catch (e) {
         continue;
       }
@@ -122,6 +126,11 @@
       out.push({ el, key, url, title: (a.textContent || "").trim() });
     }
     return out;
+  }
+
+  // Notizie del feed della pagina corrente.
+  function getFeedArticles() {
+    return collectArticles(document, location.href);
   }
 
   async function waitForFeed(maxTries = 12, delay = 150) {
@@ -140,6 +149,9 @@
   }
   function setStore(obj) {
     return new Promise((res) => chrome.storage.local.set(obj, res));
+  }
+  function removeStore(keys) {
+    return new Promise((res) => chrome.storage.local.remove(keys, res));
   }
 
   // -------- impostazioni --------
@@ -575,11 +587,12 @@
     root.style.setProperty("--hdb-accent-mid", mixWhite(site.color, 0.42));
   }
 
-  function setBadge(count) {
+  function setBadge(count, approx) {
     try {
       chrome.runtime.sendMessage({
         type: "setBadge",
         count: count,
+        approx: !!approx, // limite inferiore: il SW mostra "N+" (decina in giù)
         color: site.color || "#df151c",
       });
     } catch (e) {}
@@ -628,6 +641,26 @@
     });
   }
 
+  // Applica classe + etichetta "Ultima letta" e aggancia l'osservatore del
+  // "raggiunto". Usata sia sulla home (applyHighlight) sia sulle pagine archivio.
+  function markElement(el) {
+    el.classList.add("hdb-marker");
+    if (!el.querySelector(".hdb-label")) {
+      const lab = document.createElement("span");
+      lab.className = "hdb-label";
+      lab.textContent = "Ultima letta";
+      el.appendChild(lab);
+    }
+    watchMarkerReached(el);
+  }
+
+  function flashAndCenter(el) {
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.remove("hdb-flash");
+    void el.offsetWidth; // restart animazione
+    el.classList.add("hdb-flash");
+  }
+
   function applyHighlight() {
     if (!state.markerKey) return lastStatus;
     const feed = getFeedArticles();
@@ -635,6 +668,7 @@
 
     let unread = 0;
     let found = false;
+    let approx = false;
     let markerTitle = "";
 
     const idx = feed.findIndex((a) => a.key === state.markerKey);
@@ -642,32 +676,32 @@
       found = true;
       unread = idx; // quante notizie stanno sopra (più recenti) = non lette
       markerTitle = feed[idx].title;
-      const el = feed[idx].el;
-      el.classList.add("hdb-marker");
-      if (!el.querySelector(".hdb-label")) {
-        const lab = document.createElement("span");
-        lab.className = "hdb-label";
-        lab.textContent = "Ultima letta";
-        el.appendChild(lab);
-      }
       // Ri-agganciato a ogni applicazione: il sito può sostituire il nodo (re-render).
-      watchMarkerReached(el);
+      markElement(feed[idx].el);
+    } else if (refined) {
+      // Segnalibro fuori dal feed ma contato nell'archivio (refineUnread):
+      // posizione del marker nella sequenza completa del sito = numero VERO.
+      found = false;
+      unread = refined.count;
+      approx = !refined.exact; // oltre il tetto di pagine: resta un limite inferiore
     } else {
       found = false;
-      unread = feed.length; // segnalibro fuori dalla lista caricata: tutte da leggere
+      unread = feed.length; // limite inferiore: il segnalibro è oltre il feed caricato
+      approx = true;
     }
 
     lastStatus = {
       onHome: true,
       siteName: site.name,
       unread: unread,
+      approx: approx,
       found: found,
       markerTitle: markerTitle,
       total: feed.length,
     };
     setStore({ ["status_" + site.id]: lastStatus });
-    setBadge(unread);
-    renderToast(lastStatus);
+    setBadge(unread, approx);
+    if (!refining) renderToast(lastStatus);
     return lastStatus;
   }
 
@@ -723,6 +757,182 @@
     window.addEventListener("scroll", scheduleReapply, { passive: true });
   }
 
+  // ---- archivio paginato ("tutte le notizie") ----
+  // Su alcuni siti (hwupgrade) il feed della home è FISSO: finite le ~40 notizie
+  // lo scroll non carica altro, e le più vecchie stanno in un archivio a pagine
+  // (/news/index.html, /news/index2.html, ...). Se il segnalibro non è nel feed,
+  // "Vai all'ultima letta" imposta un flag di ricerca (seek_<id>) e naviga
+  // all'archivio: su ogni pagina initArchive() cerca il marker — se c'è lo
+  // evidenzia e centra, altrimenti passa alla pagina successiva. Il TTL, il tetto
+  // di pagine e il confronto flag.page/pagina corrente evitano che un flag
+  // rimasto appeso dirotti le visite normali all'archivio.
+  const SEEK_TTL_MS = 5 * 60 * 1000;
+
+  function archiveMaxPages() {
+    return (site.archive && site.archive.maxPages) || 40;
+  }
+
+  function archiveUrlFor(page) {
+    return site.archive.urlBase + (page > 1 ? String(page) : "") + ".html";
+  }
+
+  // Numero di pagina se l'URL corrente è una pagina dell'archivio, altrimenti null.
+  function archivePageNum() {
+    if (!site.archive || !site.archive.pathRegex) return null;
+    let m = null;
+    try {
+      m = location.pathname.match(new RegExp(site.archive.pathRegex));
+    } catch (e) {
+      return null;
+    }
+    if (!m) return null;
+    return m[1] ? parseInt(m[1], 10) : 1;
+  }
+
+  async function startArchiveSeek() {
+    await setStore({ [K.seek]: { page: 1, ts: Date.now() } });
+    location.assign(archiveUrlFor(1));
+  }
+
+  // Pagina archivio: SOLO ricerca/evidenziazione. Il segnalibro NON avanza mai
+  // qui (marker/pending/init restano intatti); "reached" invece sì (markElement
+  // aggancia watchMarkerReached): se l'utente arriva a VEDERE l'ultima letta
+  // nell'archivio, al prossimo caricamento della home l'avanzamento riparte
+  // normalmente — è la stessa semantica della home.
+  async function initArchive(page) {
+    applyAccent();
+    lastStatus = { onHome: false, archive: true, siteName: site.name };
+
+    const store = await getStore([K.marker, K.seek]);
+    const marker = store[K.marker];
+    const seek = store[K.seek];
+    const seeking = !!(
+      marker &&
+      seek &&
+      seek.page === page &&
+      typeof seek.ts === "number" &&
+      Date.now() - seek.ts < SEEK_TTL_MS
+    );
+
+    if (!marker) {
+      if (seek) await removeStore(K.seek);
+      return;
+    }
+    state.markerKey = marker;
+
+    const feed = await waitForFeed();
+    const idx = feed.findIndex((a) => a.key === marker);
+
+    if (idx >= 0) {
+      // Trovata: evidenzia (e chiudi l'eventuale ricerca in corso).
+      if (seek) await removeStore(K.seek);
+      markElement(feed[idx].el);
+      lastStatus.found = true;
+      if (seeking) flashAndCenter(feed[idx].el);
+      return;
+    }
+
+    if (!seeking) return; // visita normale dell'archivio: nessuna auto-navigazione
+
+    if (!feed.length || page >= archiveMaxPages()) {
+      // Fine ricerca senza esito (pagina vuota o tetto raggiunto): fermarsi,
+      // non navigare all'infinito.
+      await removeStore(K.seek);
+      try {
+        console.log(
+          "[Segnalibro] ricerca nell'archivio interrotta a pagina",
+          page
+        );
+      } catch (e) {}
+      return;
+    }
+    // ts originale invariato: il TTL limita la durata TOTALE della ricerca.
+    await setStore({ [K.seek]: { page: page + 1, ts: seek.ts } });
+    location.assign(archiveUrlFor(page + 1));
+  }
+
+  // ---- conteggio esatto dall'archivio ----
+  // Quando il segnalibro non è tra le notizie della home, unread = feed.length è
+  // solo un limite inferiore (sui feed statici tipo hwupgrade il badge direbbe
+  // sempre "42"). Sui siti con archivio paginato si scaricano allora le pagine
+  // archivio via fetch (stessa origine: nessun permesso extra) e si conta la
+  // posizione del marker nella sequenza completa = numero vero di non lette.
+  // Qualunque errore (rete, markup) lascia il fallback "N+"; oltre il tetto di
+  // pagine il numero resta un limite inferiore (exact=false).
+  const COUNT_MAX_PAGES = 5; // ~30 notizie a pagina: conteggio esatto fino a ~150
+  const COUNT_TTL_MS = 10 * 60 * 1000;
+  let refined = null; // { count, exact } — esito del conteggio (null = non fatto)
+  let refining = false; // conteggio in corso: il toast aspetta l'esito
+
+  async function countUnreadInArchive(markerKey) {
+    const seen = new Set();
+    let count = 0;
+    for (let page = 1; page <= COUNT_MAX_PAGES; page++) {
+      const url = archiveUrlFor(page);
+      let articles;
+      try {
+        const resp = await fetch(url, { credentials: "omit" });
+        if (!resp.ok) return null;
+        const doc = new DOMParser().parseFromString(
+          await resp.text(),
+          "text/html"
+        );
+        articles = collectArticles(doc, url);
+      } catch (e) {
+        return null;
+      }
+      // Pagina senza notizie = markup cambiato o fine archivio: meglio nessun
+      // numero (fallback "N+") che un conteggio sbagliato.
+      if (!articles.length) return null;
+      for (const a of articles) {
+        // Le pagine possono sovrapporsi (il feed scorre tra un fetch e l'altro).
+        if (seen.has(a.key)) continue;
+        seen.add(a.key);
+        if (a.key === markerKey) return { count: count, exact: true };
+        count++;
+      }
+    }
+    return { count: count, exact: false }; // marker oltre il tetto: limite inferiore
+  }
+
+  async function refineUnread(markerKey, newestKey) {
+    let res = null;
+    try {
+      const stored = await getStore([K.count]);
+      const cached = stored[K.count];
+      if (
+        cached &&
+        cached.marker === markerKey &&
+        cached.newest === newestKey &&
+        typeof cached.count === "number" &&
+        typeof cached.ts === "number" &&
+        Date.now() - cached.ts < COUNT_TTL_MS
+      ) {
+        res = { count: cached.count, exact: !!cached.exact };
+      } else {
+        res = await countUnreadInArchive(markerKey);
+        if (res) {
+          await setStore({
+            [K.count]: {
+              marker: markerKey,
+              newest: newestKey,
+              count: res.count,
+              exact: res.exact,
+              ts: Date.now(),
+            },
+          });
+        }
+      }
+    } catch (e) {
+      res = null;
+    }
+    // Il marker può essere cambiato nel frattempo (es. "Segna tutte come lette"):
+    // in quel caso l'esito non vale più.
+    if (res && state.markerKey === markerKey) refined = res;
+    refining = false;
+    applyHighlight(); // ri-applica col numero esatto (o sblocca il toast col fallback)
+  }
+
   async function scrollToMarker() {
     let el = document.querySelector(".hdb-marker");
     // Se il segnalibro non è ancora nel DOM (notizia sotto la piega non ancora
@@ -731,7 +941,9 @@
     // MOLTO in basso (tante notizie accumulate): si smette solo quando la pagina
     // non scende più da un po' (fondo raggiunto e niente di nuovo caricato) o a
     // un tetto massimo di sicurezza.
-    if (!el && state.markerKey) {
+    // Sui feed FISSI (site.feedStatic: tutto il feed è già nel DOM) scrollare
+    // non carica nulla: si salta lo scroll e si va dritti al fallback archivio.
+    if (!el && state.markerKey && !site.feedStatic) {
       let stuck = 0;
       for (let i = 0; i < 120 && !el && stuck < 8; i++) {
         const before = window.scrollY;
@@ -742,11 +954,16 @@
         el = document.querySelector(".hdb-marker");
       }
     }
-    if (!el) return false;
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-    el.classList.remove("hdb-flash");
-    void el.offsetWidth; // restart animazione
-    el.classList.add("hdb-flash");
+    if (!el) {
+      // Feed finito senza trovare il segnalibro: se il sito ha l'archivio
+      // paginato, la ricerca continua lì (vedi initArchive).
+      if (site.archive && state.markerKey) {
+        await startArchiveSeek();
+        return true;
+      }
+      return false;
+    }
+    flashAndCenter(el);
     return true;
   }
 
@@ -754,6 +971,8 @@
     const feed = getFeedArticles();
     if (!feed.length) return lastStatus;
     state.markerKey = feed[0].key;
+    refined = null; // l'eventuale conteggio dall'archivio riguardava il vecchio marker
+    refining = false;
     reachedThisVisit = true; // sei in pari per definizione
     setStore({
       [K.marker]: feed[0].key,
@@ -773,7 +992,7 @@
   function toastMessage(status) {
     if (status.found && status.unread > 0) {
       return {
-        num: status.unread > 99 ? "99+" : String(status.unread),
+        num: formatUnread(status.unread, false),
         title:
           status.unread === 1
             ? "notizia nuova da leggere"
@@ -781,12 +1000,16 @@
         canGo: true,
       };
     }
-    if (!status.found && status.total > 0) {
-      // Il segnalibro è più in basso, oltre le notizie già caricate: il bottone
-      // funziona lo stesso (scrollToMarker forza il lazy-load scendendo a step).
+    if (!status.found && status.unread > 0) {
+      // Il segnalibro è più in basso, oltre le notizie già caricate: il numero
+      // è quello contato nell'archivio (refineUnread) oppure un limite inferiore
+      // mostrato come "N+". Il bottone funziona lo stesso (scrollToMarker forza
+      // il lazy-load; sui siti con archivio paginato prosegue la ricerca lì).
       return {
-        num: status.total > 99 ? "99+" : String(status.total),
-        title: "notizie nuove (l'ultima letta è più in basso)",
+        num: formatUnread(status.unread, status.approx),
+        title: site.archive
+          ? "notizie nuove (l'ultima letta è nell'archivio)"
+          : "notizie nuove (l'ultima letta è più in basso)",
         canGo: true,
       };
     }
@@ -888,6 +1111,17 @@
       return;
     }
 
+    // Pagina dell'archivio paginato (es. hwupgrade /news/indexN.html): cerca ed
+    // evidenzia il segnalibro senza MAI avanzarlo; se è in corso "Vai all'ultima
+    // letta" (flag seek) gestisce anche l'auto-navigazione tra le pagine.
+    if (!site.trackingOnly && site.archive) {
+      const page = archivePageNum();
+      if (page !== null) {
+        await initArchive(page);
+        return;
+      }
+    }
+
     if (!isHome()) {
       lastStatus = { onHome: false, siteName: site.name };
       // Pagina articolo: raccogli interessi (se attivo).
@@ -977,6 +1211,14 @@
       [K.reached]: false, // si riparte: andrà ri-raggiunto in questa visita
     });
     state.markerKey = marker;
+
+    // Segnalibro fuori dal feed + archivio disponibile: parte il conteggio esatto
+    // (asincrono, non blocca l'evidenziazione). Il toast aspetta l'esito; badge e
+    // popup mostrano intanto il limite inferiore "N+".
+    if (site.archive && !feed.some((a) => a.key === marker)) {
+      refining = true;
+      refineUnread(marker, currentNewest);
+    }
 
     applyHighlight();
     lastSig = currentSig();

@@ -30,6 +30,18 @@
  *   trackingOnly    (opzionale) true = nessun segnalibro sulla home; si registrano solo
  *                   gli articoli aperti (es. hdmotori). Non servono articleSelector/idRegex.
  *
+ *   feedStatic      (opzionale) true se il feed della home è TUTTO nel DOM già al
+ *                   caricamento (nessun lazy-load): scrollare non carica altre notizie,
+ *                   quindi "Vai all'ultima letta" salta lo scroll e passa all'archivio.
+ *   archive         (opzionale) archivio paginato ("tutte le notizie") dove continuare
+ *                   la ricerca del segnalibro quando non sta nel feed della home.
+ *                   Le pagine archivio devono usare gli stessi articleSelector/linkSelector:
+ *                     urlBase   URL della pagina archivio SENZA numero né estensione
+ *                               (pagina 1 = urlBase+".html", pagina N = urlBase+N+".html")
+ *                     pathRegex regex sul PERCORSO che riconosce le pagine archivio;
+ *                               gruppo 1 = numero di pagina (vuoto = pagina 1)
+ *                     maxPages  tetto di pagine esplorate in automatico (default 40)
+ *
  *   -- solo per il tracciamento interessi (pagine articolo) --
  *   categorySelector (opzionale) selettore CSS il cui testo è la categoria dell'articolo.
  *   catPathIndex     (opzionale) indice del segmento dell'URL da usare come categoria
@@ -65,6 +77,16 @@ const NEWS_SITES = [
     idPrefix: "",
     newestLast: false,
     catPathIndex: 1,
+    // La home è un feed FISSO (~40 notizie, niente lazy-load): se il segnalibro
+    // non è lì, sta nell'archivio "Tutte le notizie", paginato:
+    // /news/index.html (pag. 1), /news/index2.html, ... (~30 notizie a pagina,
+    // stesso markup della home).
+    feedStatic: true,
+    archive: {
+      urlBase: "https://www.hwupgrade.it/news/index",
+      pathRegex: "^/news/index(\\d*)\\.html$",
+      maxPages: 40,
+    },
   },
 
   {
@@ -127,10 +149,26 @@ function siteHomeUrl(site) {
   return "https://" + site.hosts[0] + "/";
 }
 
+/* Numero non lette per badge/toast/popup. Esatto: "57" (oltre 99: "99+").
+   approx = il numero è solo un LIMITE INFERIORE (segnalibro oltre il feed
+   caricato / oltre il tetto di pagine archivio): arrotondato alla decina in
+   giù con "+", es. 42 -> "40+" (sotto 10 resta com'è: 7 -> "7+"). */
+function formatUnread(count, approx) {
+  const n = count | 0;
+  if (n <= 0) return "0";
+  if (approx) {
+    const base = Math.floor(n / 10) * 10;
+    if (base < 10) return n + "+";
+    return Math.min(990, base) + "+";
+  }
+  return n > 99 ? "99+" : String(n);
+}
+
 /* Esporta anche su globale per sicurezza (condiviso tra content scripts e popup). */
 if (typeof self !== "undefined") {
   self.NEWS_SITES = NEWS_SITES;
   self.findSiteForUrl = findSiteForUrl;
   self.isSiteHome = isSiteHome;
   self.siteHomeUrl = siteHomeUrl;
+  self.formatUnread = formatUnread;
 }
