@@ -64,6 +64,21 @@
     return isSiteHome(site, location.href);
   }
 
+  // Ricaricamento automatico fatto dal SITO (non dall'utente). hdblog ricarica la
+  // home ogni 777s via <meta http-equiv="refresh"> verso "/?refresh_ce", e la pagina
+  // di arrivo ripete il tag: il ciclo va avanti finché la scheda resta aperta.
+  // Quel caricamento non è una visita, quindi non deve far avanzare il segnalibro.
+  // Ci basiamo sul parametro nell'URL (site.autoRefreshParam) e non sul tipo di
+  // navigazione: un reload fatto dal sito e l'F5 dell'utente sono indistinguibili.
+  function isAutoRefreshLoad() {
+    if (!site.autoRefreshParam) return false;
+    try {
+      return new URLSearchParams(location.search).has(site.autoRefreshParam);
+    } catch (e) {
+      return false;
+    }
+  }
+
   // Chiave stabile della notizia.
   function articleKey(rawHref) {
     let u;
@@ -682,8 +697,12 @@
       // Segnalibro fuori dal feed ma contato nell'archivio (refineUnread):
       // posizione del marker nella sequenza completa del sito = numero VERO.
       found = false;
-      unread = refined.count;
-      approx = !refined.exact; // oltre il tetto di pagine: resta un limite inferiore
+      // Oltre il tetto di pagine sono entrambi limiti inferiori: vale il
+      // maggiore tra conteggio archivio e notizie caricate nel feed.
+      unread = refined.exact
+        ? refined.count
+        : Math.max(refined.count, feed.length);
+      approx = !refined.exact;
     } else {
       found = false;
       unread = feed.length; // limite inferiore: il segnalibro è oltre il feed caricato
@@ -773,6 +792,11 @@
   }
 
   function archiveUrlFor(page) {
+    // Due formati: urlTemplate con {n} al posto del numero di pagina (hdblog:
+    // endpoint ajax del lazy-load, ?page=1,2,3...) oppure urlBase+N+".html"
+    // con la pagina 1 senza numero (hwupgrade: index.html, index2.html, ...).
+    if (site.archive.urlTemplate)
+      return site.archive.urlTemplate.replace("{n}", String(page));
     return site.archive.urlBase + (page > 1 ? String(page) : "") + ".html";
   }
 
@@ -789,23 +813,51 @@
     return m[1] ? parseInt(m[1], 10) : 1;
   }
 
-  async function startArchiveSeek() {
-    await setStore({ [K.seek]: { page: 1, ts: Date.now() } });
-    location.assign(archiveUrlFor(1));
+  // Avvia (o prosegue) la ricerca del segnalibro nell'archivio a partire da `page`.
+  // Chiamata con la pagina successiva quando siamo GIÀ in una pagina dell'archivio:
+  // ripartire da 1 rifarebbe il giro delle pagine appena scartate.
+  async function startArchiveSeek(page) {
+    const p = page || 1;
+    if (p > archiveMaxPages()) return false;
+    await setStore({ [K.seek]: { page: p, ts: Date.now() } });
+    location.assign(archiveUrlFor(p));
+    return true;
   }
 
-  // Pagina archivio: SOLO ricerca/evidenziazione. Il segnalibro NON avanza mai
-  // qui (marker/pending/init restano intatti); "reached" invece sì (markElement
-  // aggancia watchMarkerReached): se l'utente arriva a VEDERE l'ultima letta
-  // nell'archivio, al prossimo caricamento della home l'avanzamento riparte
-  // normalmente — è la stessa semantica della home.
+  // Pagina archivio: SOLO ricerca/evidenziazione. Il caricamento non avanza mai il
+  // segnalibro (marker/pending/init restano intatti — l'unico modo di cambiarlo da
+  // qui è il pulsante "Segna tutte come lette", vedi markAllRead); "reached" invece
+  // sì (markElement aggancia watchMarkerReached): se l'utente arriva a VEDERE
+  // l'ultima letta nell'archivio, al prossimo caricamento della home l'avanzamento
+  // riparte normalmente — è la stessa semantica della home.
   async function initArchive(page) {
     applyAccent();
-    lastStatus = { onHome: false, archive: true, siteName: site.name };
+    // Stato di partenza sincrono: se il popup chiede lo stato mentre siamo ancora
+    // nelle await qui sotto, deve comunque vedere "archivio" (e i suoi pulsanti).
+    lastStatus = {
+      onHome: false,
+      archive: true,
+      archivePage: page,
+      siteName: site.name,
+      unread: 0,
+      approx: false,
+      found: false,
+      markerTitle: "",
+      total: 0,
+    };
 
-    const store = await getStore([K.marker, K.seek]);
+    const store = await getStore([K.marker, K.seek, "status_" + site.id]);
     const marker = store[K.marker];
     const seek = store[K.seek];
+
+    // Le "non lette" si contano sulla HOME (qui il feed è un pezzo di archivio, non
+    // il feed corrente): riusiamo l'ultimo stato noto della home, cioè lo stesso
+    // numero che mostra il badge, così il popup non resta muto.
+    const home = store["status_" + site.id] || {};
+    lastStatus.unread = home.unread | 0;
+    lastStatus.approx = !!home.approx;
+    setBadge(lastStatus.unread, lastStatus.approx);
+
     const seeking = !!(
       marker &&
       seek &&
@@ -821,6 +873,7 @@
     state.markerKey = marker;
 
     const feed = await waitForFeed();
+    lastStatus.total = feed.length;
     const idx = feed.findIndex((a) => a.key === marker);
 
     if (idx >= 0) {
@@ -828,6 +881,7 @@
       if (seek) await removeStore(K.seek);
       markElement(feed[idx].el);
       lastStatus.found = true;
+      lastStatus.markerTitle = feed[idx].title;
       if (seeking) flashAndCenter(feed[idx].el);
       return;
     }
@@ -867,7 +921,10 @@
   async function countUnreadInArchive(markerKey) {
     const seen = new Set();
     let count = 0;
-    for (let page = 1; page <= COUNT_MAX_PAGES; page++) {
+    // Tetto per sito: le pagine hanno dimensioni diverse (hwupgrade ~30
+    // notizie, hdblog ~9-10) e il default coprirebbe troppo poco.
+    const maxPages = site.archive.countMaxPages || COUNT_MAX_PAGES;
+    for (let page = 1; page <= maxPages; page++) {
       const url = archiveUrlFor(page);
       let articles;
       try {
@@ -956,10 +1013,14 @@
     }
     if (!el) {
       // Feed finito senza trovare il segnalibro: se il sito ha l'archivio
-      // paginato, la ricerca continua lì (vedi initArchive).
-      if (site.archive && state.markerKey) {
-        await startArchiveSeek();
-        return true;
+      // paginato, la ricerca continua lì (vedi initArchive). Con countOnly
+      // (hdblog) l'archivio è un endpoint ajax buono solo per CONTARE, non
+      // per navigarci: lì l'ultima letta si raggiunge scrollando.
+      if (site.archive && !site.archive.countOnly && state.markerKey) {
+        // Se siamo già in una pagina dell'archivio, si riprende da quella DOPO:
+        // le precedenti le abbiamo appena scartate.
+        const cur = archivePageNum();
+        return await startArchiveSeek(cur === null ? 1 : cur + 1);
       }
       return false;
     }
@@ -967,20 +1028,61 @@
     return true;
   }
 
-  function markAllRead() {
-    const feed = getFeedArticles();
-    if (!feed.length) return lastStatus;
-    state.markerKey = feed[0].key;
+  async function markAllRead() {
+    const onArchive = !!(lastStatus && lastStatus.archive);
+
+    // Qual è "la più recente"? Sulla home è feed[0]. Nell'ARCHIVIO no: lì il feed
+    // è un pezzo di storico, e feed[0] di /news/index5.html è una notizia vecchia —
+    // usarla sposterebbe il segnalibro all'INDIETRO, gonfiando le non lette. La più
+    // recente vera è quella registrata all'ultimo caricamento della home (pending).
+    let newest = null;
+    if (onArchive) {
+      const store = await getStore([K.pending, K.marker]);
+      newest = store[K.pending] || store[K.marker] || null;
+    } else {
+      const feed = getFeedArticles();
+      newest = feed.length ? feed[0].key : null;
+    }
+    if (!newest) return lastStatus;
+
+    state.markerKey = newest;
     refined = null; // l'eventuale conteggio dall'archivio riguardava il vecchio marker
     refining = false;
     reachedThisVisit = true; // sei in pari per definizione
-    setStore({
-      [K.marker]: feed[0].key,
-      [K.pending]: feed[0].key,
+    await setStore({
+      [K.marker]: newest,
+      [K.pending]: newest,
       [K.init]: true,
       [K.reached]: true,
     });
-    return applyHighlight();
+    // Una ricerca dell'ultima letta ancora in corso non ha più senso.
+    await removeStore(K.seek);
+
+    if (!onArchive) return applyHighlight();
+
+    // Nell'archivio non c'è nulla da ricalcolare (il conteggio vive sulla home):
+    // azzeriamo stato, badge ed evidenziazione di questa pagina, che ora punta a
+    // una notizia più VECCHIA del segnalibro.
+    clearHighlight();
+    lastStatus.unread = 0;
+    lastStatus.approx = false;
+    lastStatus.found = false;
+    lastStatus.markerTitle = "";
+    setBadge(0);
+    // Aggiorna anche l'ultimo stato noto della home, da cui l'archivio legge il
+    // conteggio: senza questo, cambiando pagina si rivedrebbe il numero vecchio.
+    await setStore({
+      ["status_" + site.id]: {
+        onHome: true,
+        siteName: site.name,
+        unread: 0,
+        approx: false,
+        found: false,
+        markerTitle: "",
+        total: 0,
+      },
+    });
+    return lastStatus;
   }
 
   // -------- pop-up in pagina (toast) --------
@@ -988,6 +1090,35 @@
   let toastEl = null;
   let toastDone = false;
   let toastTimer = null;
+
+  // Il toast resta visibile 7 secondi DI SGUARDO: il conto alla rovescia corre
+  // solo mentre la scheda è visibile. Aprendo la home in una scheda in
+  // background (es. più siti aperti insieme), il toast aspetta che l'utente
+  // arrivi sulla scheda; se cambia scheda a metà si mette in pausa e riparte
+  // dal tempo residuo al ritorno.
+  const TOAST_MS = 7000;
+  let toastLeft = TOAST_MS; // tempo di visualizzazione residuo
+  let toastShownAt = 0; // avvio (o ripresa) del conto alla rovescia
+
+  function startToastTimer() {
+    if (toastTimer || !toastEl || toastDone) return;
+    toastShownAt = Date.now();
+    toastTimer = setTimeout(dismissToast, toastLeft);
+  }
+
+  function pauseToastTimer() {
+    if (!toastTimer) return;
+    clearTimeout(toastTimer);
+    toastTimer = null;
+    // Minimo 1s: tornando sulla scheda all'ultimo istante il toast non deve
+    // sparire subito.
+    toastLeft = Math.max(1000, toastLeft - (Date.now() - toastShownAt));
+  }
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") startToastTimer();
+    else pauseToastTimer();
+  });
 
   function toastMessage(status) {
     if (status.found && status.unread > 0) {
@@ -1007,9 +1138,10 @@
       // il lazy-load; sui siti con archivio paginato prosegue la ricerca lì).
       return {
         num: formatUnread(status.unread, status.approx),
-        title: site.archive
-          ? "notizie nuove (l'ultima letta è nell'archivio)"
-          : "notizie nuove (l'ultima letta è più in basso)",
+        title:
+          site.archive && !site.archive.countOnly
+            ? "notizie nuove (l'ultima letta è nell'archivio)"
+            : "notizie nuove (l'ultima letta è più in basso)",
         canGo: true,
       };
     }
@@ -1066,7 +1198,8 @@
       requestAnimationFrame(() => {
         if (toastEl) toastEl.classList.add("hdb-toast-in");
       });
-      toastTimer = setTimeout(dismissToast, 7000);
+      // Scheda in background: il timer partirà al visibilitychange.
+      if (document.visibilityState === "visible") startToastTimer();
     }
 
     toastEl.querySelector(".hdb-toast-num").textContent = msg.num;
@@ -1090,7 +1223,12 @@
       return true;
     }
     if (msg.type === "markAllRead") {
-      sendResponse(markAllRead());
+      // Asincrona (nell'archivio deve leggere "pending" dallo storage): il canale
+      // resta aperto finché non arriva la risposta.
+      markAllRead().then(
+        (st) => sendResponse(st),
+        () => sendResponse(lastStatus)
+      );
       return true;
     }
   });
@@ -1183,11 +1321,22 @@
       }
     }
 
+    // Il sito si è ricaricato da solo (vedi isAutoRefreshLoad): è la STESSA visita,
+    // non una nuova. Vale solo a segnalibro già inizializzato.
+    const autoRefresh = !!store[K.init] && isAutoRefreshLoad();
+
     let marker, pending;
     if (!store[K.init]) {
       // prima volta in assoluto: entrambi i segnalibri sull'ultima notizia
       marker = currentNewest;
       pending = currentNewest;
+    } else if (autoRefresh) {
+      // Niente si muove: la visita resta agganciata al caricamento con cui è
+      // iniziata. Anche "pending" resta fermo di proposito, così alla prossima
+      // visita VERA il marker riparte dalla notizia più recente di quando avevi
+      // aperto la pagina, non da quelle uscite mentre stavi leggendo.
+      marker = store[K.marker] || store[K.pending] || currentNewest;
+      pending = store[K.pending] || currentNewest;
     } else if (store[K.reached]) {
       // Nella visita precedente il segnalibro era stato RAGGIUNTO (visto sullo
       // schermo): avanza di un passo — il marker prende il 2° segnalibro
@@ -1208,9 +1357,15 @@
       [K.marker]: marker,
       [K.pending]: pending,
       [K.init]: true,
-      [K.reached]: false, // si riparte: andrà ri-raggiunto in questa visita
+      // Su un refresh automatico la visita continua: il "raggiunto" NON si azzera,
+      // altrimenti il ricaricamento cancellerebbe anche il fatto che il segnalibro
+      // l'avevi già visto, bloccando l'avanzamento alla visita successiva.
+      [K.reached]: autoRefresh ? !!store[K.reached] : false,
     });
     state.markerKey = marker;
+    // Coerente con lo storage: se il segnalibro era già stato raggiunto prima del
+    // refresh automatico, non serve rimettersi a osservarlo.
+    if (autoRefresh && store[K.reached]) reachedThisVisit = true;
 
     // Segnalibro fuori dal feed + archivio disponibile: parte il conteggio esatto
     // (asincrono, non blocca l'evidenziazione). Il toast aspetta l'esito; badge e

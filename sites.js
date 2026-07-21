@@ -30,6 +30,15 @@
  *   trackingOnly    (opzionale) true = nessun segnalibro sulla home; si registrano solo
  *                   gli articoli aperti (es. hdmotori). Non servono articleSelector/idRegex.
  *
+ *   autoRefreshParam (opzionale) nome di un parametro nella query string con cui il SITO
+ *                   marca i propri ricaricamenti automatici della home (es. hdblog:
+ *                   <meta http-equiv="refresh" content="777;url=https://www.hdblog.it/?refresh_ce">
+ *                   -> "refresh_ce"). Quando l'URL porta quel parametro, il caricamento NON
+ *                   viene contato come una nuova visita: il segnalibro non avanza e il flag
+ *                   "reached" resta com'era. Serve un marcatore nell'URL perché il tipo di
+ *                   navigazione non basta: un reload fatto dal sito è indistinguibile dall'F5
+ *                   dell'utente.
+ *
  *   feedStatic      (opzionale) true se il feed della home è TUTTO nel DOM già al
  *                   caricamento (nessun lazy-load): scrollare non carica altre notizie,
  *                   quindi "Vai all'ultima letta" salta lo scroll e passa all'archivio.
@@ -38,9 +47,17 @@
  *                   Le pagine archivio devono usare gli stessi articleSelector/linkSelector:
  *                     urlBase   URL della pagina archivio SENZA numero né estensione
  *                               (pagina 1 = urlBase+".html", pagina N = urlBase+N+".html")
+ *                     urlTemplate (alternativa a urlBase) URL con {n} al posto del numero
+ *                               di pagina, per archivi con altro formato (es. hdblog:
+ *                               endpoint ajax ?page={n}, numerato da 1)
  *                     pathRegex regex sul PERCORSO che riconosce le pagine archivio;
  *                               gruppo 1 = numero di pagina (vuoto = pagina 1)
  *                     maxPages  tetto di pagine esplorate in automatico (default 40)
+ *                     countOnly true = archivio usato SOLO per il conteggio esatto delle
+ *                               non lette (fetch in background), MAI per navigarci
+ *                               ("Vai all'ultima letta" resta lo scroll del feed)
+ *                     countMaxPages tetto di pagine scaricate per il conteggio esatto
+ *                               (default 5; da alzare se le pagine sono piccole)
  *
  *   -- solo per il tracciamento interessi (pagine articolo) --
  *   categorySelector (opzionale) selettore CSS il cui testo è la categoria dell'articolo.
@@ -63,6 +80,25 @@ const NEWS_SITES = [
     idPrefix: "n",
     newestLast: false,
     catPathIndex: 0,
+    // La home si RICARICA DA SOLA: <meta http-equiv="refresh" content='777;url=
+    // https://www.hdblog.it/?refresh_ce'> — ogni ~13 minuti, e la pagina di arrivo
+    // ripete lo stesso tag, quindi il ciclo continua finché la scheda resta aperta.
+    // Senza questo campo ogni ricaricamento contava come una visita nuova e faceva
+    // avanzare il segnalibro su notizie mai lette (segnalato dall'utente).
+    autoRefreshParam: "refresh_ce",
+    // Il feed della home è LAZY: scrollando si caricano altre notizie via
+    // /new_files/ajax/pages.php?page=N (~9-10 notizie a pagina; la home
+    // server-rendered corrisponde alle pagine 1-2, il bottone "Altre Notizie"
+    // parte da page=3). La sequenza ajax ricalca esattamente la home
+    // (verificato: home = prefisso di p1+p2+p3), quindi fa da archivio per il
+    // CONTEGGIO ESATTO delle non lette. countOnly: è un frammento HTML nudo
+    // (e le pagine navigabili /page/N/ stanno dietro Cloudflare Turnstile),
+    // NON ci si naviga — "Vai all'ultima letta" resta lo scroll del feed.
+    archive: {
+      urlTemplate: "https://www.hdblog.it/new_files/ajax/pages.php?page={n}",
+      countOnly: true,
+      countMaxPages: 16, // ~9-10 notizie/pagina: esatto fino a ~150, come hwupgrade
+    },
   },
 
   {

@@ -58,12 +58,18 @@ function renderOnHome(status, site) {
   $("offhome").classList.add("hidden");
   $("disabled").classList.add("hidden");
   $("onhome").classList.remove("hidden");
-  $("head-title").textContent = site ? site.name : "Segnalibro notizie";
+  const base = site ? site.name : "Segnalibro notizie";
+  // Nell'archivio paginato di un sito (es. hwupgrade /news/indexZ.html) i comandi
+  // restano disponibili: lo diciamo nel titolo, perché il conteggio mostrato è
+  // quello dell'ultimo caricamento della home.
+  $("head-title").textContent = status.archive
+    ? base + " · archivio" + (status.archivePage ? " p." + status.archivePage : "")
+    : base;
   setAccent(site ? site.color : "#df151c");
 
   const unread = status.unread | 0;
   // approx = limite inferiore (segnalibro oltre il feed): "40+" invece di "42".
-  $("count").textContent = formatUnread(unread, !status.found && status.approx);
+  $("count").textContent = formatUnread(unread, status.approx);
   $("count-label").textContent =
     unread === 1 ? "notizia nuova da leggere" : "notizie nuove da leggere";
 
@@ -73,6 +79,11 @@ function renderOnHome(status, site) {
 
   const notFound = status.total > 0 && !status.found;
   $("notfound").classList.toggle("hidden", !notFound);
+  if (notFound) {
+    $("notfound").textContent = status.archive
+      ? "L'ultima notizia letta non è in questa pagina dell'archivio. Usa «Vai all'ultima letta» per proseguire la ricerca nelle pagine successive."
+      : "L'ultima notizia letta è più in basso, oltre le notizie già caricate. Il segnalibro non si perde: usa «Vai all'ultima letta» per raggiungerla.";
+  }
 }
 
 let activeTabId = null;
@@ -100,13 +111,17 @@ async function boot() {
     return;
   }
 
-  // Sito solo-tracciamento (es. hdmotori): niente segnalibro da mostrare.
+  // Due stati mostrano i comandi: la home del sito, e le pagine dell'ARCHIVIO
+  // paginato (es. hwupgrade /news/indexZ.html), dove il segnalibro si cerca e si
+  // può comunque segnare tutto come letto. Sito solo-tracciamento (hdmotori) escluso.
+  const onHome = !!(status && status.onHome) && isSiteHome(site, tab.url || "");
+  const onArchive = !!(status && status.archive);
+
   if (
-    (status && status.trackingOnly) ||
-    site.trackingOnly ||
-    !isSiteHome(site, tab.url || "") ||
     !status ||
-    !status.onHome
+    status.trackingOnly ||
+    site.trackingOnly ||
+    (!onHome && !onArchive)
   ) {
     renderOffHome();
     return;
