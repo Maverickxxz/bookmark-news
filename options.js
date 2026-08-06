@@ -1,7 +1,12 @@
 /* Pagina Impostazioni: interruttori + vista degli interessi raccolti (solo locale). */
 
 const $ = (id) => document.getElementById(id);
-const DEFAULTS = { enabled: true, showToast: true, trackInterests: true };
+const DEFAULTS = {
+  enabled: true,
+  showToast: true,
+  trackInterests: true,
+  hideDupes: true,
+};
 
 function deaccent(s) {
   return String(s)
@@ -25,6 +30,7 @@ async function loadSettings() {
   const s = Object.assign({}, DEFAULTS, d.settings || {});
   $("opt-enabled").checked = s.enabled;
   $("opt-toast").checked = s.showToast;
+  $("opt-dupes").checked = s.hideDupes;
   $("opt-track").checked = s.trackInterests;
 }
 
@@ -32,6 +38,7 @@ async function saveSettings() {
   const s = {
     enabled: $("opt-enabled").checked,
     showToast: $("opt-toast").checked,
+    hideDupes: $("opt-dupes").checked,
     trackInterests: $("opt-track").checked,
   };
   await setStore({ settings: s });
@@ -391,7 +398,7 @@ async function onReset() {
   refreshData();
 }
 
-["opt-enabled", "opt-toast", "opt-track"].forEach((id) =>
+["opt-enabled", "opt-toast", "opt-dupes", "opt-track"].forEach((id) =>
   $(id).addEventListener("change", saveSettings)
 );
 $("btn-reset").addEventListener("click", onReset);

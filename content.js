@@ -46,6 +46,7 @@
         reached: "reached_" + site.id,
         seek: "seek_" + site.id,
         count: "count_" + site.id,
+        rescroll: "rescroll_" + site.id,
       }
     : null;
 
@@ -64,20 +65,87 @@
     return isSiteHome(site, location.href);
   }
 
-  // Ricaricamento automatico fatto dal SITO (non dall'utente). hdblog ricarica la
-  // home ogni 777s via <meta http-equiv="refresh"> verso "/?refresh_ce", e la pagina
-  // di arrivo ripete il tag: il ciclo va avanti finché la scheda resta aperta.
-  // Quel caricamento non è una visita, quindi non deve far avanzare il segnalibro.
-  // Ci basiamo sul parametro nell'URL (site.autoRefreshParam) e non sul tipo di
-  // navigazione: un reload fatto dal sito e l'F5 dell'utente sono indistinguibili.
-  function isAutoRefreshLoad() {
-    if (!site.autoRefreshParam) return false;
+  // Caricamento che NON è una visita nuova: il segnalibro non deve avanzare.
+  // Due casi, stesso trattamento, riconosciuti da un marcatore nella query string:
+  //
+  //  a) il SITO si ricarica da solo (site.autoRefreshParam). hdblog ricarica la
+  //     home ogni 777s via <meta http-equiv="refresh"> verso "/?refresh_ce", e la
+  //     pagina di arrivo ripete il tag: il ciclo va avanti finché la scheda resta
+  //     aperta.
+  //  b) ricarichiamo NOI su richiesta dell'utente (KEEP_PARAM, "Ricarica pulita"
+  //     nel popup). Serve contro i doppioni: la paginazione del lazy-load di
+  //     hdblog è a OFFSET sulla lista viva, quindi ogni notizia pubblicata mentre
+  //     leggi fa scalare di una posizione i blocchi successivi e ripete le ultime
+  //     già in pagina. Ricaricare rende di nuovo tutto in un'istantanea coerente,
+  //     ma l'utente non deve pagarlo con la posizione di lettura.
+  //
+  // Serve un marcatore nell'URL perché il tipo di navigazione non basta: il reload
+  // fatto dal sito, il nostro e l'F5 dell'utente sono indistinguibili (è il motivo
+  // per cui getNavType fu rimosso in v0.0.8). Corollario: l'F5 che l'utente preme
+  // da sé resta una visita vera — per non spostare il segnalibro deve passare dal
+  // pulsante, che è l'unico modo che abbiamo di riconoscere la ricarica.
+  const KEEP_PARAM = "hdbkeep";
+
+  function sameVisitParams() {
+    const out = [KEEP_PARAM];
+    if (site && site.autoRefreshParam) out.push(site.autoRefreshParam);
+    return out;
+  }
+
+  function detectSameVisitLoad() {
+    if (!site) return false;
     try {
-      return new URLSearchParams(location.search).has(site.autoRefreshParam);
+      const q = new URLSearchParams(location.search);
+      return sameVisitParams().some((p) => q.has(p));
     } catch (e) {
       return false;
     }
   }
+
+  // Quale dei due marcatori ci ha portato qui: per il segnalibro sono equivalenti,
+  // ma il ritorno automatico all'ultima letta deve scattare SOLO dopo la nostra
+  // "Ricarica pulita", mai su un refresh automatico del sito (che arriva da solo
+  // ogni ~13 minuti e non deve muovere la pagina sotto l'utente — è il sintomo del
+  // bug #9). Distinguerli è anche l'unico modo perché un flag rescroll rimasto
+  // appeso non venga raccolto dal primo auto-refresh che passa.
+  function detectKeepLoad() {
+    if (!site) return false;
+    try {
+      return new URLSearchParams(location.search).has(KEEP_PARAM);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // I parametri vanno letti UNA VOLTA sola, prima di ripulire l'URL: da qui in poi
+  // valgono queste costanti, non location.search.
+  const sameVisitLoad = detectSameVisitLoad();
+  const keepLoad = detectKeepLoad();
+
+  // ...e subito dopo i marcatori vanno TOLTI dall'URL. Se restano, la barra degli
+  // indirizzi si "incolla" su https://www.hdblog.it/?refresh_ce e ogni caricamento
+  // successivo — compreso l'F5 dell'utente — sembra automatico: il segnalibro non
+  // avanza mai più (segnalato dall'utente). history.replaceState riscrive l'URL
+  // SENZA ricaricare la pagina: la scheda resta dov'è ma torna a essere la home
+  // pulita, quindi un ricaricamento manuale conta di nuovo come visita vera.
+  // Il meta refresh del sito punta all'URL assoluto col parametro, quindi il
+  // prossimo auto-refresh viene comunque riconosciuto (e ripulito a sua volta).
+  // L'ANCORA si conserva: hdblog ci tiene il numero di blocchi già aperti
+  // (#?t=...&b=N) e la usa per rirenderizzarli tutti insieme.
+  function stripVisitParams() {
+    try {
+      const u = new URL(location.href);
+      sameVisitParams().forEach((p) => u.searchParams.delete(p));
+      const qs = u.searchParams.toString();
+      history.replaceState(
+        history.state,
+        "",
+        u.pathname + (qs ? "?" + qs : "") + u.hash
+      );
+    } catch (e) {}
+  }
+
+  if (sameVisitLoad) stripVisitParams();
 
   // Chiave stabile della notizia.
   function articleKey(rawHref) {
@@ -116,6 +184,13 @@
   // Estrae le notizie (dalla più recente alla più vecchia) da un albero DOM:
   // la pagina corrente oppure un documento parsato con DOMParser (conteggio
   // esatto dall'archivio, vedi countUnreadInArchive).
+  //
+  // Una notizia già incontrata più in alto viene SCARTATA dalla lista (vale la
+  // prima occorrenza, quella in posizione cronologica giusta) ma il suo elemento
+  // finisce in out.dups: sono i doppioni che il lazy-load a offset genera da solo
+  // (vedi hideDuplicates). out.raw = quanti nodi ha matchato il selettore, prima
+  // di ogni scarto: serve alla firma del feed per accorgersi anche di un blocco
+  // fatto di soli doppioni, che non cambierebbe la lunghezza della lista.
   function collectArticles(root, baseUrl) {
     let els = Array.prototype.slice.call(
       root.querySelectorAll(site.articleSelector)
@@ -123,6 +198,7 @@
     if (site.newestLast) els.reverse();
 
     const out = [];
+    const dups = [];
     const seen = new Set();
     for (const el of els) {
       const a = pickLink(el);
@@ -130,7 +206,11 @@
       const href = a.getAttribute("href");
       if (!href) continue;
       const key = articleKey(href);
-      if (!key || seen.has(key)) continue;
+      if (!key) continue;
+      if (seen.has(key)) {
+        dups.push(el);
+        continue;
+      }
       let url;
       try {
         url = new URL(href, baseUrl).href;
@@ -140,6 +220,8 @@
       seen.add(key);
       out.push({ el, key, url, title: (a.textContent || "").trim() });
     }
+    out.dups = dups;
+    out.raw = els.length;
     return out;
   }
 
@@ -171,7 +253,12 @@
 
   // -------- impostazioni --------
 
-  const DEFAULT_SETTINGS = { enabled: true, showToast: true, trackInterests: true };
+  const DEFAULT_SETTINGS = {
+    enabled: true,
+    showToast: true,
+    trackInterests: true,
+    hideDupes: true,
+  };
   let settings = DEFAULT_SETTINGS;
   let ignoreSet = new Set(); // parole extra da ignorare, scelte dall'utente (deaccentate)
 
@@ -656,6 +743,33 @@
     });
   }
 
+  // ---- doppioni del feed ----
+  // Il lazy-load di hdblog è paginato a OFFSET sulla lista VIVA: pages.php?page=N
+  // ricalcola le posizioni a ogni richiesta. La home viene renderizzata all'apertura
+  // (blocchi 1-2), i blocchi successivi arrivano mentre scorri: ogni notizia
+  // pubblicata nel frattempo fa scalare la sequenza di una posizione, così il
+  // blocco che arriva RIPETE le ultime notizie già in pagina. Verificato dal vivo:
+  // pubblicata n666098, la pagina 3 è passata da iniziare con n666081 a iniziare
+  // con n666086, che era l'ultima del blocco già mostrato.
+  //
+  // Non possiamo impedirlo (lo genera il server), possiamo solo non mostrarlo.
+  // Nascondiamo le occorrenze SUCCESSIVE alla prima: la prima sta nella posizione
+  // cronologica giusta ed è quella su cui cade l'eventuale evidenziazione.
+  // Il confronto è sulla CHIAVE dell'articolo (per hdblog l'id numerico nXXXXXX):
+  // due notizie diverse non possono collidere.
+  function hideDuplicates(feed) {
+    if (settings && settings.hideDupes === false) return 0;
+    // Ripuliamo prima di ri-marcare: se il sito ri-renderizza la lista, un nodo
+    // marcato può ritrovarsi a essere la prima occorrenza (applyHighlight è
+    // idempotente e gira più volte, non deve accumulare nascondimenti sbagliati).
+    document
+      .querySelectorAll(".hdb-dup")
+      .forEach((e) => e.classList.remove("hdb-dup"));
+    const dups = (feed && feed.dups) || [];
+    dups.forEach((el) => el.classList.add("hdb-dup"));
+    return dups.length;
+  }
+
   // Applica classe + etichetta "Ultima letta" e aggancia l'osservatore del
   // "raggiunto". Usata sia sulla home (applyHighlight) sia sulle pagine archivio.
   function markElement(el) {
@@ -680,6 +794,7 @@
     if (!state.markerKey) return lastStatus;
     const feed = getFeedArticles();
     clearHighlight();
+    const dups = hideDuplicates(feed);
 
     let unread = 0;
     let found = false;
@@ -717,6 +832,7 @@
       found: found,
       markerTitle: markerTitle,
       total: feed.length,
+      dups: dups, // doppioni del sito nascosti in questa pagina (vedi hideDuplicates)
     };
     setStore({ ["status_" + site.id]: lastStatus });
     setBadge(unread, approx);
@@ -736,6 +852,10 @@
   let lastSig = "";
 
   // Firma dello stato rilevante: se non cambia, non c'è nulla da rifare.
+  // feed.raw (nodi trovati dal selettore, doppioni compresi) sta nella firma
+  // insieme a feed.length (notizie distinte): un blocco caricato dal lazy-load
+  // può essere fatto di SOLI doppioni — la lista non cambierebbe lunghezza e i
+  // nuovi elementi ripetuti resterebbero visibili.
   function currentSig() {
     const feed = getFeedArticles();
     if (!feed.length) return null; // feed vuoto/transitorio (re-render): non toccare
@@ -744,7 +864,7 @@
       : -1;
     const el = idx >= 0 ? feed[idx].el : null;
     const has = !!(el && el.classList.contains("hdb-marker"));
-    return feed.length + "|" + idx + "|" + (has ? 1 : 0);
+    return feed.raw + "|" + feed.length + "|" + idx + "|" + (has ? 1 : 0);
   }
 
   function reapplyIfChanged() {
@@ -1028,6 +1148,34 @@
     return true;
   }
 
+  // ---- ricarica "pulita" (senza spostare il segnalibro) ----
+  // Ricaricare la pagina fa sparire i doppioni: il server rirenderizza la home e
+  // hdblog, grazie all'ancora #?t=...&b=N che scrive lui stesso mentre scorri,
+  // richiede TUTTI i blocchi già aperti in una sola volta — un'istantanea
+  // coerente, quindi niente scorrimento della paginazione (vedi hideDuplicates).
+  // Il problema è che un caricamento normale conta come visita nuova: con
+  // reached=true il segnalibro avanzerebbe a "sei in pari", buttando via le
+  // notizie non ancora lette (segnalato dall'utente). Qui ricarichiamo NOI
+  // mettendo KEEP_PARAM nell'URL, che init() legge come "stessa visita".
+  const RESCROLL_TTL_MS = 2 * 60 * 1000;
+
+  async function reloadKeepingMarker() {
+    try {
+      // Dopo il ricaricamento si torna da soli all'ultima letta: la ricarica non
+      // deve costare né il segnalibro né il punto in cui eri.
+      await setStore({ [K.rescroll]: { ts: Date.now() } });
+      const u = new URL(location.href);
+      u.searchParams.set(KEEP_PARAM, "1");
+      // replace() e non assign(): non lasciamo in cronologia l'URL col marcatore
+      // (viene comunque ripulito da stripVisitParams al caricamento). L'ANCORA
+      // resta, ed è quella che fa rirenderizzare a hdblog i blocchi già aperti.
+      location.replace(u.href);
+    } catch (e) {
+      location.reload();
+    }
+    return true;
+  }
+
   async function markAllRead() {
     const onArchive = !!(lastStatus && lastStatus.archive);
 
@@ -1222,6 +1370,13 @@
       sendResponse({ ok: true });
       return true;
     }
+    if (msg.type === "reloadClean") {
+      // La navigazione parte comunque anche se il popup si chiude: rispondiamo
+      // prima, altrimenti il canale muore insieme alla pagina.
+      sendResponse({ ok: true });
+      reloadKeepingMarker();
+      return true;
+    }
     if (msg.type === "markAllRead") {
       // Asincrona (nell'archivio deve leggere "pending" dallo storage): il canale
       // resta aperto finché non arriva la risposta.
@@ -1307,7 +1462,13 @@
     }
 
     const currentNewest = feed[0].key;
-    let store = await getStore([K.marker, K.pending, K.init, K.reached]);
+    let store = await getStore([
+      K.marker,
+      K.pending,
+      K.init,
+      K.reached,
+      K.rescroll,
+    ]);
 
     // Migrazione dal formato v1 (solo hdblog, chiavi senza suffisso).
     if (!store[K.init] && site.id === "hdblog") {
@@ -1321,16 +1482,17 @@
       }
     }
 
-    // Il sito si è ricaricato da solo (vedi isAutoRefreshLoad): è la STESSA visita,
-    // non una nuova. Vale solo a segnalibro già inizializzato.
-    const autoRefresh = !!store[K.init] && isAutoRefreshLoad();
+    // Ricaricamento automatico del sito, oppure "Ricarica pulita" chiesta
+    // dall'utente (vedi detectSameVisitLoad): è la STESSA visita, non una nuova.
+    // Vale solo a segnalibro già inizializzato.
+    const sameVisit = !!store[K.init] && sameVisitLoad;
 
     let marker, pending;
     if (!store[K.init]) {
       // prima volta in assoluto: entrambi i segnalibri sull'ultima notizia
       marker = currentNewest;
       pending = currentNewest;
-    } else if (autoRefresh) {
+    } else if (sameVisit) {
       // Niente si muove: la visita resta agganciata al caricamento con cui è
       // iniziata. Anche "pending" resta fermo di proposito, così alla prossima
       // visita VERA il marker riparte dalla notizia più recente di quando avevi
@@ -1357,15 +1519,16 @@
       [K.marker]: marker,
       [K.pending]: pending,
       [K.init]: true,
-      // Su un refresh automatico la visita continua: il "raggiunto" NON si azzera,
-      // altrimenti il ricaricamento cancellerebbe anche il fatto che il segnalibro
-      // l'avevi già visto, bloccando l'avanzamento alla visita successiva.
-      [K.reached]: autoRefresh ? !!store[K.reached] : false,
+      // Se la visita continua (refresh automatico o "Ricarica pulita") il
+      // "raggiunto" NON si azzera, altrimenti il ricaricamento cancellerebbe anche
+      // il fatto che il segnalibro l'avevi già visto, bloccando l'avanzamento alla
+      // visita successiva.
+      [K.reached]: sameVisit ? !!store[K.reached] : false,
     });
     state.markerKey = marker;
     // Coerente con lo storage: se il segnalibro era già stato raggiunto prima del
-    // refresh automatico, non serve rimettersi a osservarlo.
-    if (autoRefresh && store[K.reached]) reachedThisVisit = true;
+    // ricaricamento, non serve rimettersi a osservarlo.
+    if (sameVisit && store[K.reached]) reachedThisVisit = true;
 
     // Segnalibro fuori dal feed + archivio disponibile: parte il conteggio esatto
     // (asincrono, non blocca l'evidenziazione). Il toast aspetta l'esito; badge e
@@ -1378,6 +1541,22 @@
     applyHighlight();
     lastSig = currentSig();
     startFeedWatch();
+
+    // Veniamo da "Ricarica pulita": riportiamo l'utente dov'era. Il flag si
+    // consuma SEMPRE (anche scaduto o su un caricamento qualsiasi), così non
+    // resta appeso a dirottare una visita futura; agisce solo se la ricarica è
+    // davvero la NOSTRA (keepLoad, non un auto-refresh del sito) ed è recente.
+    const rescroll = store[K.rescroll];
+    if (rescroll) {
+      await removeStore(K.rescroll);
+      if (
+        keepLoad &&
+        typeof rescroll.ts === "number" &&
+        Date.now() - rescroll.ts < RESCROLL_TTL_MS
+      ) {
+        scrollToMarker();
+      }
+    }
   }
 
   init();

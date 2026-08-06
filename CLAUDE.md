@@ -4,6 +4,9 @@ Estensione Chromium (Manifest V3) che, sulla **home** dei siti di notizie config
 evidenzia l'ultima notizia già vista e mostra sul badge dell'icona quante notizie nuove
 sono uscite. Multi-sito, con segnalibro e colore indipendenti per ogni sito.
 
+**Ogni bug corretto va registrato in `BUG.md`** (sintomo / causa / correzione / verifica,
+dal più recente in cima), oltre alla spiegazione della logica qui sotto.
+
 ## Cosa fa (logica del segnalibro)
 
 **Doppio segnalibro** (registro a scorrimento). Per sito in `chrome.storage.local`: `marker`
@@ -101,9 +104,8 @@ la **stessa visita** — `marker` e `pending` restano fermi (pending congelato a
 prossima visita vera si riparte dalla più recente di quando hai APERTO la pagina, non da quelle
 uscite mentre leggevi) e `reached` NON si azzera. Si usa un marcatore nell'URL e non il tipo di
 navigazione perché un `reload()` del sito è indistinguibile dall'F5 dell'utente (era il motivo
-per cui `getNavType` fu rimosso in v0.0.8). Effetto collaterale accettato: un F5 manuale mentre
-sei sull'URL `?refresh_ce` non fa avanzare il segnalibro — errore nella direzione conservativa,
-come v0.3.1.
+per cui `getNavType` fu rimosso in v0.0.8). (L'effetto collaterale — F5 manuale sull'URL
+`?refresh_ce` che non avanza — è stato poi eliminato in v0.3.6, sotto.)
 (2) su hwupgrade i pulsanti del popup sparivano sulle pagine archivio `/news/index[Z].html`:
 lì `initArchive()` metteva `lastStatus = {onHome:false, archive:true}` e `popup.js/boot()`
 mandava tutto su `renderOffHome`. Non era un caso limite: è "Vai all'ultima letta" stesso a
@@ -121,24 +123,96 @@ la ricerca prosegue da quella DOPO invece di rifare il giro da 1. Verificato con
 popup, markAllRead in archivio, prosecuzione della ricerca) + markup reale delle pagine
 archivio (30 `li.news-item` con `h3 a` su `index.html` e `index3.html`).
 
+**L'URL del refresh automatico va ripulito (v0.3.6)** — conseguenza della v0.3.5 segnalata
+dall'utente: dopo l'auto-refresh la scheda restava "incollata" su
+`https://www.hdblog.it/?refresh_ce`, e siccome quel parametro È il segnale di riconoscimento,
+da lì in poi **ogni** caricamento sembrava automatico — il segnalibro non avanzava più
+"neanche refreshando 100 volte" (l'F5 ricarica l'URL della barra, che porta ancora il
+parametro; il sito stesso poi ripunta a `?refresh_ce`, quindi non se ne usciva). Ora
+`content.js` legge il parametro **una volta sola** all'avvio (costante `autoRefreshLoad`, non
+più `location.search` a ogni chiamata) e subito dopo lo toglie dall'URL con
+`stripAutoRefreshParam()` → `history.replaceState` (riscrive la barra degli indirizzi SENZA
+ricaricare: la scheda resta dov'è, la cronologia torna alla home pulita, gli altri parametri
+e l'ancora sono conservati). Così il caricamento in corso resta trattato come auto-refresh
+(segnalibro fermo, `reached` conservato) ma tutti quelli successivi tornano visite vere.
+Il meta refresh del sito punta all'URL **assoluto** col parametro, quindi il prossimo
+auto-refresh viene comunque riconosciuto (e ripulito a sua volta): la catena è stabile.
+Bonus: l'URL ora alterna `/` → `/?refresh_ce`, quindi Chrome non ripristina più lo scroll a
+ogni auto-refresh (l'altro sintomo descritto in v0.3.5). Verificato con
+`scratchpad/test-autorefresh-url.js` (36 controlli: pulizia URL, scenario "auto-refresh poi
+F5 a mano", 5 auto-refresh a catena, siti senza `autoRefreshParam`).
+
+**Doppioni del feed + ricarica che non sposta il segnalibro (v0.3.7)** — segnalato dall'utente:
+su hdblog «delle volte le notizie vengono duplicate» (con 41 arretrate, risalendo il feed molte
+comparivano due volte). Causa: **non è l'estensione, è il sito**. Il lazy-load
+(`pages.php?page=N`) è paginato a **offset sulla lista VIVA** e ricalcola le posizioni a ogni
+richiesta; la home è renderizzata all'apertura (blocchi 1-2), i blocchi dopo arrivano mentre
+scorri, quindi ogni notizia pubblicata nel frattempo fa scalare la sequenza di una posizione e il
+blocco che arriva **ripete le ultime già in pagina**. Misurato dal vivo: pubblicata `n666098`, la
+pagina 3 è passata da iniziare con `n666081` a iniziare con `n666086`, che era l'ultima della home
+già mostrata (diagnostica riutilizzabile: `scratchpad/diag-hdblog-dup.js`). Il **conteggio non era
+gonfiato** (`collectArticles` deduplicava già): era un difetto di sola visualizzazione.
+Ora `collectArticles` tiene da parte gli scarti in `out.dups` (e il numero di nodi grezzi in
+`out.raw`) e `hideDuplicates()` nasconde le occorrenze **successive alla prima** con `.hdb-dup`
+(`display:none`) — la prima sta nella posizione cronologica giusta ed è quella evidenziata; il
+confronto è sulla chiave dell'articolo, quindi due notizie diverse non collidono mai. Si ripulisce
+prima di ri-marcare (`applyHighlight` è idempotente e il sito ri-renderizza), e `feed.raw` entra
+nella firma `currentSig` perché un blocco di **soli** doppioni non cambierebbe il numero di
+distinte e resterebbe visibile. Interruttore `hideDupes` in Impostazioni (default true).
+Seconda metà della segnalazione: ricaricare la pagina **toglie i doppioni** (il server rirende
+tutto in un'istantanea coerente; su hdblog l'ancora `#?t=…&b=N`, che scrive lui stesso mentre
+scorri, gli fa richiedere in una volta sola tutti i blocchi già aperti) **ma sposta il segnalibro**,
+perché con `reached=true` il caricamento vale come visita e `marker` avanza a `pending`. Siccome
+l'F5 dell'utente non è distinguibile (lezione di v0.0.8), la ricarica deve farla l'estensione:
+`autoRefreshParam` è stato generalizzato a `sameVisitParams()` = marcatore del sito + il nostro
+`hdbkeep`, e il pulsante **«Ricarica pulita»** del popup chiama `reloadKeepingMarker()`
+(`location.replace` con `?hdbkeep=1`, **ancora conservata**). `init()` lo tratta come stessa visita
+(`marker`/`pending` fermi, `reached` conservato) e `stripVisitParams()` toglie subito il parametro
+(lezione di v0.3.6). Il flag `rescroll_<id>` (`{ts}`, TTL 2 min, **consumato sempre**) riporta poi
+l'utente all'ultima letta: la ricarica non costa né il segnalibro né il punto di lettura. Attenzione
+alla condizione: il salto guarda `keepLoad` (SOLO `hdbkeep`), non `sameVisitLoad` — un flag rimasto
+appeso verrebbe altrimenti raccolto dal primo auto-refresh del sito, che trascinerebbe la pagina
+sotto gli occhi dell'utente (il sintomo di v0.3.5). L'F5 a mano resta di proposito una visita vera.
+Verificato con `scratchpad/test-clean-reload-dupes.js` (44 controlli: doppioni sulla sequenza reale
+misurata, idempotenza e re-render, firma con blocco di soli doppioni, registro sotto ricarica
+pulita, F5 a mano invariato, flag che non resta appeso, siti senza `autoRefreshParam`).
+
 ## File
 
 - `manifest.json` — MV3; `matches` elenca gli host; carica `sites.js` poi `content.js`.
 - `sites.js` — **registro dei siti** (`NEWS_SITES`) + helper condivisi (`findSiteForUrl`, `isSiteHome`). Caricato sia dai content script sia dal popup.
-- `content.js` — logica generica (usa la config del sito attivo). Storage per-sito: `marker_<id>`, `pending_<id>`, `initialized_<id>`, `reached_<id>`, `seek_<id>`, `count_<id>`. Mostra anche un toast in pagina (`renderToast`) col numero di notizie nuove, solo quando `unread > 0`; auto-dismiss dopo 7s di scheda VISIBILE (in background aspetta; pausa/ripresa su `visibilitychange`), una volta per caricamento. Sulle pagine ARTICOLO chiama `trackArticle()`, che NON scrive: invia l'entry al service worker.
+- `content.js` — logica generica (usa la config del sito attivo). Storage per-sito: `marker_<id>`, `pending_<id>`, `initialized_<id>`, `reached_<id>`, `seek_<id>`, `count_<id>`, `rescroll_<id>`. Mostra anche un toast in pagina (`renderToast`) col numero di notizie nuove, solo quando `unread > 0`; auto-dismiss dopo 7s di scheda VISIBILE (in background aspetta; pausa/ripresa su `visibilitychange`), una volta per caricamento. Sulle pagine ARTICOLO chiama `trackArticle()`, che NON scrive: invia l'entry al service worker.
 - `content.css` — evidenziazione + toast in basso a destra; colore per sito via variabili `--hdb-accent*` impostate da JS.
 - `background.js` — imposta il badge (numero + colore) per tab; riceve `trackArticle` e scrive gli interessi in modo **serializzato** (`trackChain`) per evitare race tra schede; qui stanno l'**anti-doppioni** (un articolo si registra una sola volta per `sito+chiave` = `entryId`; riaprirlo aggiorna solo il `ts` di ultima apertura, senza ricontare cat/keyword), gli aggregati e il cap a 1000. `dedupeInterests` è la migrazione una-tantum (a onInstalled + avvio SW) che ripulisce i doppioni storici e ricostruisce i conteggi dalla lista deduplicata (idempotente).
-- `popup.html/js/css` — stato + pulsanti (vai all'ultima letta / segna tutte come lette) + link Impostazioni + stato "disattivata". I pulsanti compaiono sulla **home** e sulle **pagine archivio** (`status.archive`, v0.3.5); su articoli/sezioni e su hdmotori resta il pannello "apri la home".
-- `options.html/js/css` — **pagina Impostazioni** (`options_ui`, apre in tab): 3 interruttori + vista degli interessi (categorie/keyword aggregate + elenco articoli aperti) + eliminazione singola (`deleteEntry`, decrementa gli aggregati) o totale + **export** (`exportJSON` = articoli+keyword+categorie; `exportCSV` = articoli, con BOM; `exportIgnore` = parole da ignorare in .txt, una per riga, ordinate/deduplicate — pensato per raccogliere i file degli utenti e unirli in futuro alle liste predefinite) + gestione "Parole da ignorare". Include `sites.js` per i nomi dei siti.
+- `popup.html/js/css` — stato + pulsanti (vai all'ultima letta / **ricarica pulita** / segna tutte come lette) + nota sui doppioni nascosti + link Impostazioni + stato "disattivata". I pulsanti compaiono sulla **home** e sulle **pagine archivio** (`status.archive`, v0.3.5); su articoli/sezioni e su hdmotori resta il pannello "apri la home". "Ricarica pulita" è nascosta nell'archivio (lì il feed è storico).
+- `options.html/js/css` — **pagina Impostazioni** (`options_ui`, apre in tab): card di sostegno
+  in cima (link facoltativo a `revolut.me/maverickx`, `target="_blank"` + `rel="noopener"`; nessun
+  pagamento gestito dall'estensione, nessuno sblocco di funzioni — vale anche come regola: il
+  link sta SOLO qui, mai iniettato nelle pagine dei siti, che è causa di rimozione dallo store),
+  poi 4 interruttori + card finale "Segnalazioni e codice sorgente" (mail di feedback come
+  TESTO semplice — niente `mailto:` né pulsante, scelta dell'utente — e link al repo GitHub,
+  stessi vincoli del link di sostegno) + vista degli interessi (categorie/keyword aggregate + elenco articoli aperti) + eliminazione singola (`deleteEntry`, decrementa gli aggregati) o totale + **export** (`exportJSON` = articoli+keyword+categorie; `exportCSV` = articoli, con BOM; `exportIgnore` = parole da ignorare in .txt, una per riga, ordinate/deduplicate — pensato per raccogliere i file degli utenti e unirli in futuro alle liste predefinite) + gestione "Parole da ignorare". Include `sites.js` per i nomi dei siti.
 
 Nota debug (v0.0.8): `content.js` logga in console `[Segnalibro] content script attivo: …`, `[Segnalibro] articolo registrato: …` e `[Segnalibro] pagina NON riconosciuta come articolo: …`. Servono a diagnosticare i casi in cui il tracciamento non parte (es. content script non iniettato per accesso-al-sito ristretto). Rimuovibili quando non servono più.
 - `rileva-selettori.js` — **strumento** (non parte dell'estensione): da incollare nella Console per ricavare i selettori di siti che bloccano il fetch remoto.
+- `build.ps1` — **pacchetto per il Web Store**: elenco ESPLICITO dei file che spediscono (whitelist,
+  non esclusioni: scratchpad, CLAUDE.md, BUG.md, STORE.md, README e strumenti restano fuori),
+  controllo del limite di 132 caratteri su `description` e ZIP costruito con `ZipArchive` scrivendo
+  i nomi con `/` (`Compress-Archive` di PS 5.1 usa `\` e su Linux le icone si perderebbero, vedi
+  BUG #13). Output in `dist/` (in `.gitignore`).
+- `PRIVACY.md` — informativa privacy, obbligatoria per la scheda dello store. Va tenuta allineata
+  al codice: se un giorno l'estensione mandasse qualcosa in rete, va aggiornata PRIMA.
+- `STORE.md` — testi pronti della scheda (nome, descrizioni, scopo unico, giustificazione dei
+  permessi, screenshot) e checklist di pubblicazione, incluso il **trader status** UE.
+- `BUG.md` — **storico dei bug risolti** (sintomo / causa / correzione / verifica, dal più recente). Da aggiornare a ogni correzione.
 
 ## Impostazioni e tracciamento (v1.3)
 
-Impostazioni in `chrome.storage.local` chiave `settings` = `{ enabled, showToast, trackInterests }`
-(default tutti `true`). `content.js/init()` le legge: se `!enabled` non fa nulla (badge svuotato,
-`lastStatus.disabled=true`); `showToast` abilita/disabilita il toast; `trackInterests` la raccolta.
+Impostazioni in `chrome.storage.local` chiave `settings` =
+`{ enabled, showToast, hideDupes, trackInterests }` (default tutti `true`). `content.js/init()` le
+legge: se `!enabled` non fa nulla (badge svuotato, `lastStatus.disabled=true`); `showToast`
+abilita/disabilita il toast; `hideDupes` lo scarto visivo dei doppioni (v0.3.7); `trackInterests`
+la raccolta.
 **Applicate al caricamento pagina** (serve ricaricare le schede dopo aver cambiato un'opzione).
 
 Tracciamento (100% locale, nessuna rete): pagina articolo = `isArticlePage()` = `idRegex` matcha
@@ -177,7 +251,10 @@ dati già raccolti (aggregato `keywords` + `opened[].kw`). Verificato con `scrat
   con `countOnly: true`: solo fetch, mai navigazione), vedi v0.3.4.
   La home si **auto-ricarica** ogni 777s via meta refresh su `/?refresh_ce` →
   `autoRefreshParam: "refresh_ce"` impedisce che quei caricamenti facciano avanzare il
-  segnalibro (v0.3.5).
+  segnalibro (v0.3.5); il parametro viene poi tolto dall'URL con `replaceState` così la
+  scheda torna alla home pulita e i caricamenti manuali contano di nuovo (v0.3.6).
+  Il lazy-load è paginato **a offset sulla lista viva**: se il sito pubblica mentre scorri, i
+  blocchi che arrivano ripetono le notizie già in pagina → `hideDuplicates` (v0.3.7).
 - **hwupgrade** (`www.hwupgrade.it`): `#news-container li.news-item` → `h3 a`; id prima di `.html`. ✅ verificato.
   Feed home FISSO → `feedStatic: true` + archivio paginato `/news/index[Z].html` (`archive`), vedi
   "Ricerca nell'archivio". (Nell'archivio compaiono anche notizie di `greenmove.hwupgrade.it`:
@@ -219,6 +296,10 @@ dati già raccolti (aggregato `keywords` + `opened[].kw`). Verificato con `scrat
   `status_<id>`.
 - Storage e stato sono **per-sito** (chiavi con suffisso `_<id>`). Non usare chiavi globali
   (le chiavi v1 senza suffisso esistono solo per la migrazione di hdblog).
+- Il feed di una pagina **non è un insieme**: una paginazione a offset su una lista che cambia
+  ripete elementi (v0.3.7). `collectArticles` deduplica per chiave e tiene gli scarti in
+  `out.dups`; quel che si deduplica nel conteggio va nascosto anche nella vista (`hideDuplicates`),
+  altrimenti il numero mostrato e le notizie che si scorrono non tornano.
 - **Verifica** senza browser: scaricare la home con `Invoke-WebRequest` (User-Agent da browser)
   e simulare i selettori con uno script Node (vedi `scratchpad/test-hwupgrade.js`). L'estensione
   MCP "Claude in Chrome" può NON essere connessa: in tal caso niente test live.

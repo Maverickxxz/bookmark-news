@@ -35,6 +35,8 @@ degli articoli che apri) — **100% sul tuo dispositivo, nulla viene inviato in 
 - 🗂️ **Multi-sito**: segnalibro e colore separati per ciascun sito.
 - 🔁 **Lazy-load robusto**: il segno resta corretto anche quando le notizie si caricano scrollando
   o il sito ri-renderizza la lista.
+- 🧹 **Niente notizie ripetute**: quando il sito, caricando altre notizie mentre scorri, ripete
+  quelle che hai già in pagina, i doppioni vengono nascosti.
 - 🧠 **Profilo interessi opzionale** (categorie + parole chiave) con estrazione keyword evoluta.
 - 📤 **Export** in JSON, CSV e TXT (parole da ignorare).
 - 🔒 **Nessuna rete, nessun account, permessi minimi** (`storage`, `activeTab`).
@@ -69,15 +71,21 @@ L'estensione non è (ancora) sul Web Store: si installa **non pacchettizzata** d
 ## Come funziona il segnalibro
 
 Usa un **doppio segnalibro** (registro a scorrimento). Refresh e riapertura sono trattati allo
-stesso modo: **ogni caricamento** della home fa avanzare il segno di un passo.
+stesso modo: non c'è modo di distinguerli.
 
 - **La prima volta** che apri il sito, il segnalibro si mette sull'ultima notizia attuale.
-- **A ogni caricamento successivo** (apertura o refresh) il segnalibro **avanza di un passo**: si
+- **A ogni caricamento successivo** (apertura o refresh) il segnalibro **avanza di un passo** — si
   sposta sull'ultima notizia che avevi visto al caricamento precedente e salva quella attuale come
-  2° segnalibro (per il caricamento dopo).
+  2° segnalibro — ma **solo se nella visita precedente eri arrivato a vederlo** sullo schermo.
+  Altrimenti resta fermo: se l'ultima letta è molto in basso e non la raggiungi mai, la posizione
+  vera non va persa.
 
 In pratica: quando apri e sono uscite notizie nuove, il segno resta sulla "vecchia ultima" e ti
 conta le nuove sopra; al caricamento successivo il segno le raggiunge.
+
+> ⚠️ Un **F5 fatto a mano conta come una visita** e quindi può far avanzare il segnalibro. Se vuoi
+> ricaricare senza perdere il punto (per esempio per ripulire il feed dalle notizie ripetute dal
+> sito), usa **Ricarica pulita** nel popup.
 
 > L'ordine seguito è quello del **DOM** (la prima notizia in alto è la più recente), non l'ID
 > numerico — che sui siti di notizie non è affidabile come data.
@@ -89,14 +97,19 @@ conta le nuove sopra; al caricamento successivo il segno le raggiunge.
 - **Numero grande** — notizie nuove da leggere.
 - **Vai all'ultima letta** — scorre fino al riquadro evidenziato (se la notizia è ancora più in
   basso e non caricata, scende automaticamente per raggiungerla).
+- **Ricarica pulita** — ricarica la home per farsela rendere dal server in un colpo solo, senza le
+  notizie ripetute dal lazy-load, e ti riporta all'ultima letta. A differenza dell'F5, **il
+  segnalibro non si sposta**.
 - **Segna tutte come lette** — azzera il conteggio spostando il segnalibro sull'ultima notizia.
 - Se non sei su un sito supportato, il popup elenca i siti disponibili.
 - **⚙ Impostazioni** — apre la pagina delle opzioni.
 
-**Impostazioni** — tre interruttori (hanno effetto al **prossimo caricamento** della pagina):
+**Impostazioni** — quattro interruttori (hanno effetto al **prossimo caricamento** della pagina):
 
 - **Estensione attiva** — accende/spegne tutto (evidenziazione, conteggio, badge, toast, raccolta).
 - **Pop-up in pagina** — mostra/nasconde il messaggio col numero di notizie nuove.
+- **Nascondi notizie duplicate** — nasconde le notizie che il sito ripete caricando il feed
+  mentre scorri.
 - **Raccogli i miei interessi** — salva categoria e parole chiave degli articoli che apri.
 
 ## Raccolta interessi e parole chiave
@@ -183,6 +196,7 @@ Nel content script, nel campo `matches`, aggiungi una riga `https://HOST/*` per 
 | `options.html` · `options.css` · `options.js` | Pagina Impostazioni + vista/esport interessi |
 | `rileva-selettori.js` | Strumento (non parte dell'estensione) per ricavare i selettori di un nuovo sito |
 | `icons/` | Icone dell'estensione |
+| `BUG.md` | Storico dei bug risolti (sintomo, causa, correzione, verifica) |
 
 ## Sviluppo e test
 
@@ -198,6 +212,7 @@ node scratchpad/test-rake.js            # keyphrase RAKE + parole generiche
 node scratchpad/test-strong-tokens.js   # acronimi/sigle (AI, PS5, 5G…)
 node scratchpad/test-dedup.js           # anti-doppioni + migrazione
 node scratchpad/test-lazy-highlight.js  # riapplicazione del segnalibro in lazy-load
+node scratchpad/test-clean-reload-dupes.js  # doppioni del feed + Ricarica pulita
 ```
 
 ## Licenza

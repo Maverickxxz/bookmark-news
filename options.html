@@ -13,6 +13,18 @@
         <h1>Segnalibro notizie — Impostazioni</h1>
       </header>
 
+      <section class="card support">
+        <div class="support-txt">
+          <b>Ti è utile?</b>
+          <small>L'estensione è gratuita e resta gratuita. Se vuoi sostenerne lo
+            sviluppo puoi offrirmi un caffè: è del tutto facoltativo e non sblocca
+            nulla.</small>
+        </div>
+        <a class="btn-support" href="https://revolut.me/maverickx" target="_blank" rel="noopener noreferrer">
+          Sostieni il progetto
+        </a>
+      </section>
+
       <section class="card">
         <h2>Generale</h2>
 
@@ -30,6 +42,16 @@
             <small>Mostra il messaggio con il numero di notizie nuove al caricamento.</small>
           </span>
           <input type="checkbox" id="opt-toast" class="switch" />
+        </label>
+
+        <label class="row">
+          <span class="row-txt">
+            <b>Nascondi notizie duplicate</b>
+            <small>Alcuni siti, caricando le notizie mentre scorri, ripetono quelle
+              che hai già in pagina. Con questa opzione vedi ogni notizia una volta
+              sola. Spegnila se sospetti che nasconda qualcosa a torto.</small>
+          </span>
+          <input type="checkbox" id="opt-dupes" class="switch" />
         </label>
 
         <label class="row">
@@ -77,7 +99,10 @@
       </section>
 
       <section class="card">
-        <h2>Parole da ignorare</h2>
+        <div class="card-head">
+          <h2>Parole da ignorare</h2>
+          <button id="export-ignore" class="btn-red" title="Scarica l'elenco delle parole ignorate (una per riga, file .txt)">Esporta parole ignorate (TXT)</button>
+        </div>
         <p class="muted small">
           Le parole elencate qui non verranno più salvate tra le parole chiave. Aggiungile
           cliccando la <b>×</b> su una parola chiave qui sopra, oppure scrivendole qui sotto
@@ -88,13 +113,27 @@
           <button id="ignore-add" class="btn-add">Aggiungi</button>
         </div>
         <ul id="ignore-list" class="chips"></ul>
-        <div class="export-row">
-          <button id="export-ignore" class="btn-export" title="Scarica l'elenco delle parole ignorate (una per riga, file .txt)">Esporta parole ignorate (TXT)</button>
-        </div>
         <p class="muted small">
           Esporta l'elenco per condividerlo: i file raccolti potranno essere uniti alle
           liste predefinite dell'estensione in una versione futura.
         </p>
+      </section>
+
+      <section class="card">
+        <h2>Segnalazioni e codice sorgente</h2>
+        <p class="muted small">
+          Hai trovato un problema, qualcosa non funziona come dovrebbe o vuoi che
+          aggiunga un altro sito di notizie? Scrivimi a
+          <span class="mail">giudigre01@gmail.com</span> — le segnalazioni degli utenti
+          sono il motivo per cui quasi tutto qui dentro funziona.
+        </p>
+        <p class="muted small">
+          Il progetto è open source: puoi leggere il codice, verificare con i tuoi occhi
+          cosa fa davvero con i tuoi dati e aprire una segnalazione.
+        </p>
+        <a class="btn-github" href="https://github.com/Maverickxxz/bookmark-news" target="_blank" rel="noopener noreferrer">
+          Vedi il progetto su GitHub
+        </a>
       </section>
     </div>
 

@@ -29,8 +29,15 @@
         Il segnalibro non si perde: usa «Vai all'ultima letta» per raggiungerla.
       </div>
 
+      <div id="dups" class="dups hidden"></div>
+
       <div class="actions">
         <button id="btn-scroll" class="btn btn-secondary">Vai all'ultima letta</button>
+        <!-- Ricarica marcata come "stessa visita": rirende il feed pulito dai
+             doppioni del sito senza far avanzare il segnalibro (un F5 normale
+             invece lo sposta, e non c'è modo di distinguerlo). -->
+        <button id="btn-reload" class="btn btn-secondary"
+          title="Ricarica la pagina per farti rendere il feed senza le notizie ripetute dal sito, e ti riporta all'ultima letta. A differenza dell'F5, il segnalibro non si sposta.">Ricarica pulita</button>
         <button id="btn-read" class="btn btn-primary">Segna tutte come lette</button>
       </div>
     </section>

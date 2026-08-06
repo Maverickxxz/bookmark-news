@@ -77,6 +77,20 @@ function renderOnHome(status, site) {
   $("marker-info").classList.toggle("hidden", !hasTitle);
   if (hasTitle) $("marker-title").textContent = status.markerTitle;
 
+  // Doppioni nascosti: il lazy-load del sito ripete notizie già in pagina quando
+  // la paginazione scorre (vedi hideDuplicates in content.js). Lo diciamo, così
+  // il numero mostrato non sembra in contraddizione con quello che si scorre.
+  const dups = status.dups | 0;
+  $("dups").classList.toggle("hidden", dups <= 0);
+  if (dups > 0)
+    $("dups").textContent =
+      dups === 1
+        ? "1 notizia ripetuta dal sito è stata nascosta."
+        : dups + " notizie ripetute dal sito sono state nascoste.";
+
+  // La ricarica pulita ha senso solo sulla home: nell'archivio il feed è storico.
+  $("btn-reload").classList.toggle("hidden", !!status.archive);
+
   const notFound = status.total > 0 && !status.found;
   $("notfound").classList.toggle("hidden", !notFound);
   if (notFound) {
@@ -140,6 +154,12 @@ document.addEventListener("click", async (e) => {
   if (activeTabId == null) return;
   if (t.id === "btn-scroll") {
     await ask(activeTabId, { type: "scrollToMarker" });
+    window.close();
+  }
+  if (t.id === "btn-reload") {
+    // La pagina si ricarica e poi torna da sola all'ultima letta: il popup non ha
+    // più nulla da mostrare.
+    await ask(activeTabId, { type: "reloadClean" });
     window.close();
   }
   if (t.id === "btn-read") {

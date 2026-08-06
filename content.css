@@ -32,6 +32,14 @@
   animation: hdb-flash-anim 1s ease;
 }
 
+/* Notizia ripetuta dal lazy-load del sito (paginazione a offset sulla lista
+   viva: vedi hideDuplicates in content.js). Resta nel DOM — il conteggio la
+   scarta già da sé — ma non va mostrata: è la stessa notizia che sta più in
+   alto in pagina. */
+.hdb-dup {
+  display: none !important;
+}
+
 @keyframes hdb-flash-anim {
   0%,
   100% {

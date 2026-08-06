@@ -37,7 +37,10 @@
  *                   viene contato come una nuova visita: il segnalibro non avanza e il flag
  *                   "reached" resta com'era. Serve un marcatore nell'URL perché il tipo di
  *                   navigazione non basta: un reload fatto dal sito è indistinguibile dall'F5
- *                   dell'utente.
+ *                   dell'utente. Subito dopo averlo letto, content.js RIMUOVE il parametro
+ *                   dall'URL (history.replaceState): senza quella pulizia la scheda resterebbe
+ *                   ferma su .../?refresh_ce e ogni ricaricamento sarebbe scambiato per
+ *                   automatico.
  *
  *   feedStatic      (opzionale) true se il feed della home è TUTTO nel DOM già al
  *                   caricamento (nessun lazy-load): scrollare non carica altre notizie,
@@ -85,6 +88,10 @@ const NEWS_SITES = [
     // ripete lo stesso tag, quindi il ciclo continua finché la scheda resta aperta.
     // Senza questo campo ogni ricaricamento contava come una visita nuova e faceva
     // avanzare il segnalibro su notizie mai lette (segnalato dall'utente).
+    // Il parametro viene poi TOLTO dall'URL con history.replaceState (v0.3.6):
+    // altrimenti la scheda resta incollata su /?refresh_ce e ogni caricamento
+    // successivo — anche l'F5 dell'utente — sembra automatico, bloccando per
+    // sempre l'avanzamento del segnalibro.
     autoRefreshParam: "refresh_ce",
     // Il feed della home è LAZY: scrollando si caricano altre notizie via
     // /new_files/ajax/pages.php?page=N (~9-10 notizie a pagina; la home
