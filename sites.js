@@ -55,10 +55,15 @@
  *                               endpoint ajax ?page={n}, numerato da 1)
  *                     pathRegex regex sul PERCORSO che riconosce le pagine archivio;
  *                               gruppo 1 = numero di pagina (vuoto = pagina 1)
+ *                     firstPage prima pagina da cui far partire la ricerca (default 1;
+ *                               2 se la pagina 1 ripete quel che c'è già nella home)
  *                     maxPages  tetto di pagine esplorate in automatico (default 40)
- *                     countOnly true = archivio usato SOLO per il conteggio esatto delle
- *                               non lette (fetch in background), MAI per navigarci
- *                               ("Vai all'ultima letta" resta lo scroll del feed)
+ *                     countTemplate (opzionale) URL alternativo da usare SOLO per il
+ *                               conteggio, con {n} al posto del numero di pagina: serve
+ *                               quando le pagine navigabili non sono scaricabili via
+ *                               fetch (hdblog: 429 a chi non è una navigazione vera) ma
+ *                               esiste un endpoint equivalente che lo è. Stessi
+ *                               selettori, numerazione propria a partire da 1.
  *                     countMaxPages tetto di pagine scaricate per il conteggio esatto
  *                               (default 5; da alzare se le pagine sono piccole)
  *
@@ -97,14 +102,28 @@ const NEWS_SITES = [
     // /new_files/ajax/pages.php?page=N (~9-10 notizie a pagina; la home
     // server-rendered corrisponde alle pagine 1-2, il bottone "Altre Notizie"
     // parte da page=3). La sequenza ajax ricalca esattamente la home
-    // (verificato: home = prefisso di p1+p2+p3), quindi fa da archivio per il
-    // CONTEGGIO ESATTO delle non lette. countOnly: è un frammento HTML nudo
-    // (e le pagine navigabili /page/N/ stanno dietro Cloudflare Turnstile),
-    // NON ci si naviga — "Vai all'ultima letta" resta lo scroll del feed.
+    // (verificato: home = prefisso di p1+p2+p3), quindi serve per il CONTEGGIO
+    // ESATTO delle non lette (countTemplate qui sotto).
+    // Il feed della home ha però un MURO: il lazy-load si ferma a page=10 (da
+    // page=11 il server risponde con un blocco vuoto), cioè ~99 notizie in
+    // tutto (home ~19 + pagine 3..10). Più indietro di così le notizie stanno
+    // nelle pagine della paginazione — quelle del bottone "Clicca qui per Altre
+    // Notizie" — che si raggiungono solo NAVIGANDO: è l'archivio del sito, e la
+    // ricerca dell'ultima letta prosegue lì pagina per pagina, come su
+    // hwupgrade. (Scaricarle con fetch non funziona: rispondono 429 a chi non è
+    // una navigazione vera del browser. Vedi BUG #14.)
     archive: {
-      urlTemplate: "https://www.hdblog.it/new_files/ajax/pages.php?page={n}",
-      countOnly: true,
-      countMaxPages: 16, // ~9-10 notizie/pagina: esatto fino a ~150, come hwupgrade
+      urlTemplate: "https://www.hdblog.it/page/{n}/",
+      pathRegex: "^/page/(\\d+)/?$",
+      // Pagina 1 ripete le notizie che stanno già nella home: la ricerca parte
+      // dalla 2 (il bottone della home porta lì).
+      firstPage: 2,
+      maxPages: 40,
+      // Per CONTARE si usa invece l'endpoint ajax del lazy-load: stesso markup,
+      // frammenti leggeri, e soprattutto scaricabile (le pagine navigabili no).
+      // Si ferma a page=10, quindi oltre le ~99 il numero resta un "90+".
+      countTemplate: "https://www.hdblog.it/new_files/ajax/pages.php?page={n}",
+      countMaxPages: 10,
     },
   },
 

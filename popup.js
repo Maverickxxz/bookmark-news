@@ -88,6 +88,10 @@ function renderOnHome(status, site) {
         ? "1 notizia ripetuta dal sito è stata nascosta."
         : dups + " notizie ripetute dal sito sono state nascoste.";
 
+  // Segnalibro bloccato dalle impostazioni (freezeMarker): senza dirlo, "non
+  // si sposta mai" sembra un guasto.
+  $("frozen").classList.toggle("hidden", !status.frozen);
+
   // La ricarica pulita ha senso solo sulla home: nell'archivio il feed è storico.
   $("btn-reload").classList.toggle("hidden", !!status.archive);
 

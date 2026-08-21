@@ -49,6 +49,11 @@ servirebbe comunque navigando, richieste senza credenziali (`credentials: "omit"
 e senza inviare alcun dato tuo. Nessuna richiesta viene fatta verso lo sviluppatore o
 verso terze parti.
 
+Quando premi «Vai all'ultima letta» e la notizia è più indietro delle pagine
+dell'archivio già viste, l'estensione **naviga** da una pagina all'altra
+dell'archivio del sito, come se sfogliassi tu: sono normali visite, non richieste
+in più.
+
 Il link di sostegno facoltativo presente nella pagina Impostazioni è un normale
 collegamento: si apre solo se lo clicchi tu, e a quel punto vale l'informativa
 privacy del servizio di pagamento (Revolut). L'estensione non gestisce pagamenti e

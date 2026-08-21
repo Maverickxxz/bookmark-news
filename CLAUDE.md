@@ -79,10 +79,11 @@ server-rendered e non c'era archivio per `refineUnread`. L'endpoint ajax del laz
 il bottone "Altre Notizie" parte da page=3) ricalca esattamente la sequenza della home
 (verificato live: home = prefisso di p1+p2+p3), quindi fa da archivio per il conteggio:
 `archive.urlTemplate` (URL con `{n}` al posto del numero, in alternativa a `urlBase`),
-`countOnly: true` = SOLO conteggio, mai navigazione (è un frammento HTML nudo e le pagine
-navigabili `/page/N/` stanno dietro Cloudflare Turnstile — "Vai all'ultima letta" resta lo
-scroll, toast con dicitura "più in basso"), `countMaxPages: 16` (~150 notizie, come hwupgrade
-col default 5 × ~30). Con conteggio oltre il tetto (exact=false) il badge mostra il maggiore
+`countOnly: true` = SOLO conteggio, mai navigazione (è un frammento HTML nudo — allora si
+credeva che le pagine `/page/N/` fossero irraggiungibili; in v0.3.9 `countOnly` è stato
+sostituito da `countTemplate`, cioè sorgente del conteggio e archivio navigabile come due campi
+distinti), `countMaxPages: 16` (~150 notizie, come hwupgrade col default 5 × ~30; sceso a 10 in
+v0.3.9, dove il muro dell'endpoint è stato misurato). Con conteggio oltre il tetto (exact=false) il badge mostra il maggiore
 tra conteggio archivio e feed caricato (entrambi limiti inferiori). Verificato con
 `scratchpad/test-toast-visibility.js` (timer: background 20s, pausa/ripresa, minimo 1s) e
 `scratchpad/test-hdblog-count.js` (unit `archiveUrlFor` + live). NB: hdblog rifiuta
@@ -177,19 +178,54 @@ Verificato con `scratchpad/test-clean-reload-dupes.js` (44 controlli: doppioni s
 misurata, idempotenza e re-render, firma con blocco di soli doppioni, registro sotto ricarica
 pulita, F5 a mano invariato, flag che non resta appeso, siti senza `autoRefreshParam`).
 
+**Il feed della home ha un muro: l'archivio di hdblog (v0.3.9)** — segnalato dall'utente al
+ritorno da una vacanza lunga (>99 arretrate): su hwupgrade "Vai all'ultima letta" funziona, su
+hdblog «si è fermato sul bottone "clicca qui per altre notizie" che mi porta ad un'altra pagina
+`/page/2/`». Il lazy-load di hdblog **si ferma a `pages.php?page=10`** (da `page=11` il server
+risponde con un blocco vuoto contenente solo `var autoloading_disabled = true`; stesso tetto nel
+JS del sito, `MAX_NUM_PAGES = 10`): home (~19) + pagine 3..10 = **~99 notizie**, punto. Più
+indietro di così `scrollToMarker` scrollava a vuoto e usciva in silenzio, lasciando l'utente sul
+bottone — che non carica altro in pagina ma **naviga** su `/page/N/`.
+**Tentativo scartato:** scaricare quelle pagine con `fetch` e appenderle alla home. Sull'endpoint
+ajax funziona (ma è proprio il pezzo che finisce a ~99), mentre `/page/N/` risponde **429 a
+qualunque client che non sia una navigazione vera del browser** — PowerShell, Node, fetch remoto
+e, provato dall'utente, anche il `fetch` del content script. Codice rimosso: una pagina protetta
+si raggiunge navigandoci, non scaricandola.
+**Come funziona ora:** `/page/N/` *è* l'archivio di hdblog, quindi si riusa la macchina di
+v0.3.2 già collaudata su hwupgrade (flag `seek_<id>` + `initArchive`, una pagina alla volta finché
+il marker compare, poi evidenziazione e centratura). In `sites.js` l'`archive` di hdblog diventa
+navigabile (`urlTemplate: ".../page/{n}/"`, `pathRegex`, `maxPages: 40`) con due campi nuovi:
+`firstPage` (2 — la pagina 1 ripete quel che sta già nella home, ed è dove porta il bottone del
+sito) e `countTemplate`, la sorgente **separata** per il conteggio: l'endpoint ajax, l'unico
+scaricabile (`countUrlFor` vs `archiveUrlFor`). Sparisce `countOnly` ("archivio buono solo per
+contare"): ora sono due campi distinti, e la scelta della strada in `seekMarker` è di nuovo una
+sola (`site.archive` → archivio).
+**Contro il silenzio** — metà del guasto era che non diceva niente: `showSeekToast` (rotellina,
+riusa lo stile del toast) accompagna la ricerca pagina per pagina, e a fine corsa spiega perché si
+è fermata (tetto, pagina vuota, TTL scaduto per strada); la × la annulla togliendo il flag `seek`,
+così la pagina dopo non riparte da sola. Lo scroll di ricerca — fino a ~25 secondi — viene
+**saltato** quando è inutile: feed statico, pagina d'archivio, o conteggio che ha già sfogliato
+tutto il feed della home senza trovare il segnalibro (`refined.exact === false` = oltre il muro).
+`SEEK_TTL_MS` sale da 5 a 10 minuti perché la passeggiata può durare decine di caricamenti veri.
+Nella stessa occasione `countUnreadInArchive` ha smesso di **buttare via** il conteggio quando
+incontra una pagina vuota (su hdblog succede sempre, a `page=11`): quel che ha contato resta un
+limite inferiore ("90+" invece di ricadere sul numero di notizie caricate in pagina), e
+`countMaxPages` è sceso da 16 a 10. Verificato con `scratchpad/test-hdblog-archive.js`
+(45 controlli + check live: muro a pagina 10, `/page/2/` non scaricabile da fuori).
+
 ## File
 
 - `manifest.json` — MV3; `matches` elenca gli host; carica `sites.js` poi `content.js`.
 - `sites.js` — **registro dei siti** (`NEWS_SITES`) + helper condivisi (`findSiteForUrl`, `isSiteHome`). Caricato sia dai content script sia dal popup.
-- `content.js` — logica generica (usa la config del sito attivo). Storage per-sito: `marker_<id>`, `pending_<id>`, `initialized_<id>`, `reached_<id>`, `seek_<id>`, `count_<id>`, `rescroll_<id>`. Mostra anche un toast in pagina (`renderToast`) col numero di notizie nuove, solo quando `unread > 0`; auto-dismiss dopo 7s di scheda VISIBILE (in background aspetta; pausa/ripresa su `visibilitychange`), una volta per caricamento. Sulle pagine ARTICOLO chiama `trackArticle()`, che NON scrive: invia l'entry al service worker.
+- `content.js` — logica generica (usa la config del sito attivo). Storage per-sito: `marker_<id>`, `pending_<id>`, `initialized_<id>`, `reached_<id>`, `seek_<id>`, `count_<id>`, `rescroll_<id>`. Mostra anche un toast in pagina (`renderToast`) col numero di notizie nuove, solo quando `unread > 0`; auto-dismiss dopo 7s di scheda VISIBILE (in background aspetta; pausa/ripresa su `visibilitychange`), una volta per caricamento; un secondo toast (`showSeekToast`, con rotellina) accompagna la ricerca dell'ultima letta mentre sfoglia l'archivio e dice perché si è fermata; la sua × la annulla togliendo il flag `seek`. Sulle pagine ARTICOLO chiama `trackArticle()`, che NON scrive: invia l'entry al service worker.
 - `content.css` — evidenziazione + toast in basso a destra; colore per sito via variabili `--hdb-accent*` impostate da JS.
 - `background.js` — imposta il badge (numero + colore) per tab; riceve `trackArticle` e scrive gli interessi in modo **serializzato** (`trackChain`) per evitare race tra schede; qui stanno l'**anti-doppioni** (un articolo si registra una sola volta per `sito+chiave` = `entryId`; riaprirlo aggiorna solo il `ts` di ultima apertura, senza ricontare cat/keyword), gli aggregati e il cap a 1000. `dedupeInterests` è la migrazione una-tantum (a onInstalled + avvio SW) che ripulisce i doppioni storici e ricostruisce i conteggi dalla lista deduplicata (idempotente).
-- `popup.html/js/css` — stato + pulsanti (vai all'ultima letta / **ricarica pulita** / segna tutte come lette) + nota sui doppioni nascosti + link Impostazioni + stato "disattivata". I pulsanti compaiono sulla **home** e sulle **pagine archivio** (`status.archive`, v0.3.5); su articoli/sezioni e su hdmotori resta il pannello "apri la home". "Ricarica pulita" è nascosta nell'archivio (lì il feed è storico).
+- `popup.html/js/css` — stato + pulsanti (vai all'ultima letta / **ricarica pulita** / segna tutte come lette) + nota sui doppioni nascosti + avviso "segnalibro bloccato" (`status.frozen`) + link Impostazioni + stato "disattivata". I pulsanti compaiono sulla **home** e sulle **pagine archivio** (`status.archive`, v0.3.5); su articoli/sezioni e su hdmotori resta il pannello "apri la home". "Ricarica pulita" è nascosta nell'archivio (lì il feed è storico).
 - `options.html/js/css` — **pagina Impostazioni** (`options_ui`, apre in tab): card di sostegno
   in cima (link facoltativo a `revolut.me/maverickx`, `target="_blank"` + `rel="noopener"`; nessun
   pagamento gestito dall'estensione, nessuno sblocco di funzioni — vale anche come regola: il
   link sta SOLO qui, mai iniettato nelle pagine dei siti, che è causa di rimozione dallo store),
-  poi 4 interruttori + card finale "Segnalazioni e codice sorgente" (mail di feedback come
+  poi 5 interruttori (compreso "Non spostare mai il segnalibro", v0.3.9) + card finale "Segnalazioni e codice sorgente" (mail di feedback come
   TESTO semplice — niente `mailto:` né pulsante, scelta dell'utente — e link al repo GitHub,
   stessi vincoli del link di sostegno) + vista degli interessi (categorie/keyword aggregate + elenco articoli aperti) + eliminazione singola (`deleteEntry`, decrementa gli aggregati) o totale + **export** (`exportJSON` = articoli+keyword+categorie; `exportCSV` = articoli, con BOM; `exportIgnore` = parole da ignorare in .txt, una per riga, ordinate/deduplicate — pensato per raccogliere i file degli utenti e unirli in futuro alle liste predefinite) + gestione "Parole da ignorare". Include `sites.js` per i nomi dei siti.
 
@@ -209,10 +245,18 @@ Nota debug (v0.0.8): `content.js` logga in console `[Segnalibro] content script 
 ## Impostazioni e tracciamento (v1.3)
 
 Impostazioni in `chrome.storage.local` chiave `settings` =
-`{ enabled, showToast, hideDupes, trackInterests }` (default tutti `true`). `content.js/init()` le
-legge: se `!enabled` non fa nulla (badge svuotato, `lastStatus.disabled=true`); `showToast`
-abilita/disabilita il toast; `hideDupes` lo scarto visivo dei doppioni (v0.3.7); `trackInterests`
-la raccolta.
+`{ enabled, showToast, hideDupes, trackInterests, freezeMarker }` (i primi quattro default `true`,
+`freezeMarker` default `false`). `content.js/init()` le legge: se `!enabled` non fa nulla (badge
+svuotato, `lastStatus.disabled=true`); `showToast` abilita/disabilita il toast delle notizie nuove
+(quello della RICERCA no: è la risposta a un clic, non un avviso che arriva da solo); `hideDupes`
+lo scarto visivo dei doppioni (v0.3.7); `trackInterests` la raccolta.
+**`freezeMarker` (v0.3.9, chiesto dall'utente)** = segnalibro BLOCCATO: non avanza mai da solo,
+nemmeno dopo averlo raggiunto — solo "Segna tutte come lette" lo sposta. È un caso in più nel
+registro di `init()`, subito dopo "stessa visita" e prima di `reached`; `pending` continua ad
+aggiornarsi, così spegnendo l'opzione il registro riparte di un passo dalla più recente
+dell'ultimo caricamento. Nasce da un arretrato di centinaia di notizie, dove il segnalibro è il
+punto di ripartenza e deve muoverlo solo l'utente. Il popup lo dice (`status.frozen`), altrimenti
+"non si sposta mai" sembra un guasto.
 **Applicate al caricamento pagina** (serve ricaricare le schede dopo aver cambiato un'opzione).
 
 Tracciamento (100% locale, nessuna rete): pagina articolo = `isArticlePage()` = `idRegex` matcha
@@ -247,8 +291,13 @@ dati già raccolti (aggregato `keywords` + `opened[].kw`). Verificato con `scrat
 ## Siti configurati
 
 - **hdblog** (`www.hdblog.it`): `article.newlist_normal` → `a.title_new`; id `nXXXXXX`. ✅ verificato.
-  Feed home LAZY; conteggio esatto dall'endpoint ajax del lazy-load (`archive.urlTemplate`
-  con `countOnly: true`: solo fetch, mai navigazione), vedi v0.3.4.
+  Feed home LAZY; conteggio esatto dall'endpoint ajax del lazy-load
+  (`archive.countTemplate`: solo fetch, mai navigazione), vedi v0.3.4.
+  Il lazy-load **si ferma a `pages.php?page=10`** (~99 notizie in tutto): più indietro di così
+  le notizie stanno nell'archivio navigabile `/page/N/` — quello del bottone "Clicca qui per
+  Altre Notizie" — dove la ricerca dell'ultima letta prosegue pagina per pagina a partire dalla
+  2 (`archive.firstPage`), come su hwupgrade (v0.3.9). Quelle pagine si possono solo NAVIGARE:
+  al fetch rispondono 429.
   La home si **auto-ricarica** ogni 777s via meta refresh su `/?refresh_ce` →
   `autoRefreshParam: "refresh_ce"` impedisce che quei caricamenti facciano avanzare il
   segnalibro (v0.3.5); il parametro viene poi tolto dall'URL con `replaceState` così la
@@ -288,8 +337,17 @@ dati già raccolti (aggregato `keywords` + `opened[].kw`). Verificato con `scrat
   (`currentSig` = `numFeed|idxMarker|hasClass`) per non ciclare sull'ad-churn e per convergere.
   Il marker "ultima letta" sta SOTTO le notizie nuove, quindi spesso non è nel DOM al primo load:
   i vecchi retry a tempo fisso non bastavano. `scrollToMarker` (bottone "Vai all'ultima letta" e
-  popup) scrolla giù a step per forzare il caricamento finché il marker compare, poi lo centra.
+  popup) scrolla giù a step per forzare il caricamento finché il marker compare, poi lo centra;
+  se il feed finisce senza trovarlo la ricerca prosegue **nell'archivio** del sito, pagina per
+  pagina (`site.archive`, v0.3.2 per hwupgrade e v0.3.9 per hdblog). Lo scroll si salta quando
+  non può servire (feed statico, pagina d'archivio, marker già noto come "oltre il muro").
   Verificato con `scratchpad/test-lazy-highlight.js`.
+- Un feed lazy **ha un fondo**, e va misurato prima di dare per scontato che scrollando si arrivi
+  ovunque: hdblog serve al massimo 10 pagine (~99 notizie), oltre le quali il bottone "altre
+  notizie" NAVIGA via invece di caricare. E una pagina che risponde **429 a tutto quel che non è
+  una navigazione vera del browser** (le `/page/N/` di hdblog: fetch del content script compreso)
+  si raggiunge **navigandoci**, non scaricandola: è il motivo per cui l'archivio si sfoglia e non
+  si "appende" alla home (tentativo scartato in v0.3.9).
 - Sulle **pagine archivio** il feed è storico, non attuale: "la più recente" è `pending_<id>`
   (scritto sulla home), MAI `feed[0]` della pagina — usarlo manderebbe il segnalibro
   all'indietro. Stessa ragione per cui il conteggio non si ricalcola lì ma si legge da

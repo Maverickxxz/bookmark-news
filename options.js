@@ -6,6 +6,7 @@ const DEFAULTS = {
   showToast: true,
   trackInterests: true,
   hideDupes: true,
+  freezeMarker: false,
 };
 
 function deaccent(s) {
@@ -30,6 +31,7 @@ async function loadSettings() {
   const s = Object.assign({}, DEFAULTS, d.settings || {});
   $("opt-enabled").checked = s.enabled;
   $("opt-toast").checked = s.showToast;
+  $("opt-freeze").checked = s.freezeMarker;
   $("opt-dupes").checked = s.hideDupes;
   $("opt-track").checked = s.trackInterests;
 }
@@ -38,6 +40,7 @@ async function saveSettings() {
   const s = {
     enabled: $("opt-enabled").checked,
     showToast: $("opt-toast").checked,
+    freezeMarker: $("opt-freeze").checked,
     hideDupes: $("opt-dupes").checked,
     trackInterests: $("opt-track").checked,
   };
@@ -398,7 +401,7 @@ async function onReset() {
   refreshData();
 }
 
-["opt-enabled", "opt-toast", "opt-dupes", "opt-track"].forEach((id) =>
+["opt-enabled", "opt-toast", "opt-freeze", "opt-dupes", "opt-track"].forEach((id) =>
   $(id).addEventListener("change", saveSettings)
 );
 $("btn-reset").addEventListener("click", onReset);

@@ -2,7 +2,7 @@
  * Verifica del CONTEGGIO ESATTO dall'archivio (v0.3.3, content.js):
  *   1) logica di countUnreadInArchive (replicata qui): posizione del marker
  *      nella sequenza delle pagine archivio, dedup tra pagine sovrapposte,
- *      tetto pagine (exact=false), pagina vuota -> null;
+ *      tetto pagine (exact=false), pagina vuota -> limite inferiore (v0.3.9);
  *   2) formatUnread (sites.js): esatto vs limite inferiore "N+" (42 -> "40+");
  *   3) check LIVE su hwupgrade: l'indice di una notizia nella home coincide con
  *      il conteggio fatto sfogliando l'archivio (stessa sequenza, home = prefisso).
@@ -18,9 +18,13 @@ const assert = require("assert");
 function countFromPages(pages, markerKey, maxPages) {
   const seen = new Set();
   let count = 0;
+  // v0.3.9: quando la sequenza si interrompe (pagina vuota, rete, markup) quel
+  // che si è già contato resta un limite inferiore valido — meglio "90+" che
+  // nessun numero. Solo se non si è contato NIENTE si rinuncia.
+  const partial = () => (count > 0 ? { count: count, exact: false } : null);
   for (let p = 0; p < Math.min(pages.length, maxPages); p++) {
     const articles = pages[p];
-    if (!articles.length) return null;
+    if (!articles.length) return partial();
     for (const key of articles) {
       if (seen.has(key)) continue;
       seen.add(key);
@@ -81,11 +85,21 @@ assert.deepStrictEqual(
   "oltre il tetto: count = notizie viste, exact = false"
 );
 
-// pagina vuota (markup cambiato / fine archivio) -> null (nessun numero)
-assert.strictEqual(
+// pagina vuota (markup cambiato / fine archivio): quel che è già stato contato
+// vale come limite inferiore (v0.3.9 — su hdblog l'ajax finisce con una pagina
+// vuota a page=11, e buttare via il conteggio faceva ricadere il badge sul
+// numero di notizie caricate in pagina)
+assert.deepStrictEqual(
   countFromPages([["a", "b"], []], "M", 5),
+  { count: 2, exact: false },
+  "pagina senza notizie: si tiene il limite inferiore"
+);
+
+// ...ma se non si è contato nulla non si inventa un numero
+assert.strictEqual(
+  countFromPages([[]], "M", 5),
   null,
-  "pagina senza notizie: conteggio annullato"
+  "prima pagina vuota: nessun conteggio"
 );
 
 // marker = prima notizia -> 0 non lette

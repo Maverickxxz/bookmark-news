@@ -8,6 +8,60 @@ Le spiegazioni lunghe della logica stanno in `CLAUDE.md`; qui c'è solo la stori
 
 ---
 
+## #14 — Su hdblog «Vai all'ultima letta» si fermava sul bottone "Altre Notizie"
+**Versione:** 0.3.9 · **Data:** 17/08/2026 · **Sito:** hdblog · **Segnalato da:** utente
+
+- **Sintomo:** al ritorno da una vacanza lunga, con più di 99 notizie arretrate: su hwupgrade il
+  pulsante del popup porta all'ultima letta, su hdblog no — «si è fermato sul bottone "clicca qui
+  per altre notizie" che mi porta ad un'altra pagina `https://www.hdblog.it/page/2/`». Nessun
+  messaggio: sembrava che il pulsante non facesse nulla.
+- **Causa:** il feed della home di hdblog ha un **muro**, e stava esattamente lì. Il lazy-load
+  chiede `/new_files/ajax/pages.php?page=N` e il **server si ferma a `page=10`**: da `page=11` in
+  poi risponde con un blocco vuoto che contiene solo `var autoloading_disabled = true` (verificato
+  scaricando le pagine 5→12). Lo stesso tetto sta nel JS del sito (`MAX_NUM_PAGES = 10`:
+  `load_next_page` esce subito quando `num_pages_loaded >= MAX_NUM_PAGES - 2`). Totale
+  raggiungibile scrollando: home (~19 notizie) + pagine 3..10 (~10 l'una) = **~99 notizie**.
+  Con l'ultima letta più indietro, `scrollToMarker` scrollava fino in fondo, la pagina smetteva di
+  crescere, il ciclo si arrendeva e la funzione usciva ritornando `false` **in silenzio**. Il
+  bottone rimasto sotto non carica altro in pagina: **naviga** su `/page/N/`, un'altra pagina dove
+  il segnalibro non c'è (e l'archivio configurato per hdblog era `countOnly`, cioè buono solo per
+  contare, mai per navigarci).
+- **Tentativo sbagliato (v0.3.9, prima versione):** scaricare le pagine successive del sito con
+  `fetch` e **appenderle alla home**, così l'elenco continuava nella stessa pagina. Sull'endpoint
+  ajax funziona, ma quello è proprio il pezzo che finisce a ~99 notizie; le pagine `/page/N/`
+  rispondono **429 a qualunque client che non sia una navigazione vera del browser** (PowerShell,
+  Node, fetch remoto e — come ha verificato l'utente — anche il `fetch` del content script). Esito:
+  il messaggio «il sito non fornisce notizie più vecchie di così», cioè un guasto elegante al posto
+  di quello brutto. Codice rimosso: la lezione è che una pagina protetta si raggiunge navigandoci,
+  non scaricandola.
+- **Correzione:** `/page/N/` **è** l'archivio di hdblog, quindi si usa la macchina che già funziona
+  su hwupgrade (flag `seek_<id>` + `initArchive`, v0.3.2): se il segnalibro non è nel feed della
+  home, "Vai all'ultima letta" naviga su `/page/2/` e da lì in avanti pagina per pagina finché non
+  lo trova, poi lo evidenzia e ci porta sopra. In `sites.js` l'archivio di hdblog diventa quindi
+  navigabile (`urlTemplate: "https://www.hdblog.it/page/{n}/"`, `pathRegex`, `maxPages: 40`) con due
+  campi nuovi: `firstPage: 2` (la pagina 1 ripete quel che c'è già nella home; è anche dove porta
+  il bottone del sito) e `countTemplate`, cioè la sorgente **separata** per il conteggio —
+  l'endpoint ajax, l'unico scaricabile. Sparisce `countOnly`, che diceva "archivio buono solo per
+  contare": ora le due cose sono due campi distinti.
+- **Corretto per la stessa causa:** `countUnreadInArchive` buttava via il conteggio quando incontrava
+  una pagina vuota (`return null`), che su hdblog è **sempre** il caso (pagina 11): il badge
+  ricadeva sul numero di notizie caricate in pagina. Ora quel che ha già contato resta un limite
+  inferiore ("90+"), e `countMaxPages` è sceso da 16 a 10 (le altre 6 richieste erano sprecate).
+- **Contro il silenzio** (metà del guasto era che non diceva niente): un toast con rotellina
+  accompagna la ricerca pagina per pagina, dice a che punto è, e a fine corsa spiega se non è
+  arrivata in fondo (tetto, pagina vuota, o TTL scaduto per strada); la × la ferma togliendo il
+  flag. Inoltre lo scroll di ricerca — fino a ~25 secondi — viene **saltato** quando è inutile:
+  feed statico, pagina d'archivio, o conteggio che ha già sfogliato tutto il feed della home senza
+  trovare il segnalibro (`refined.exact === false`, cioè oltre il muro). `SEEK_TTL_MS` sale da 5 a
+  10 minuti: la passeggiata può durare decine di caricamenti veri.
+- **Verifica:** `scratchpad/test-hdblog-archive.js` (45 controlli: URL e numerazione dell'archivio,
+  sorgente separata per il conteggio, hwupgrade invariato, la passeggiata fra le pagine — partenza
+  da 2, ripresa da una pagina d'archivio senza rifare le precedenti, stop sulla pagina vuota, tetto
+  — più il nuovo interruttore e i suoi collegamenti) + check live: l'ajax si ferma davvero a pagina
+  10, il muro sta intorno alle 90-100 notizie, `/page/2/` non è scaricabile da fuori (429).
+
+---
+
 ## #13 — Il Web Store rifiutava il pacchetto: `description` troppo lunga
 **Versione:** 0.3.8 · **Data:** 06/08/2026 · **Sito:** — (pubblicazione) · **Segnalato da:** utente
 

@@ -150,3 +150,36 @@
 .hdb-toast .hdb-toast-close:hover {
   color: #4a4a4f !important;
 }
+
+/* -------- toast della ricerca dell'ultima letta -------- */
+
+.hdb-toast-seek {
+  max-width: 300px !important;
+  align-items: center !important;
+}
+
+.hdb-toast-seek .hdb-toast-title {
+  font-weight: 600 !important;
+}
+
+.hdb-toast-seek .hdb-spin {
+  flex: none !important;
+  width: 16px !important;
+  height: 16px !important;
+  box-sizing: border-box !important;
+  border-radius: 50% !important;
+  border: 2px solid var(--hdb-accent-mid, #f3a9ab) !important;
+  border-top-color: var(--hdb-accent, #df151c) !important;
+  animation: hdb-spin-anim 0.8s linear infinite !important;
+}
+
+/* Messaggio conclusivo: niente più rotellina. */
+.hdb-toast-seek.hdb-toast-final .hdb-spin {
+  display: none !important;
+}
+
+@keyframes hdb-spin-anim {
+  to {
+    transform: rotate(360deg);
+  }
+}

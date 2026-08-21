@@ -1,6 +1,6 @@
 # 📰 Segnalibro notizie
 
-![versione](https://img.shields.io/badge/versione-0.3.0-blue)
+![versione](https://img.shields.io/badge/versione-0.4.0-blue)
 ![Manifest](https://img.shields.io/badge/Manifest-V3-brightgreen)
 ![dati](https://img.shields.io/badge/dati-100%25%20locali-success)
 

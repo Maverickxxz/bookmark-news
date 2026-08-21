@@ -258,6 +258,12 @@
     showToast: true,
     trackInterests: true,
     hideDupes: true,
+    // Segnalibro BLOCCATO: non si sposta mai da solo (vedi init()). Di norma
+    // avanza quando l'hai raggiunto con lo sguardo; con questa opzione resta
+    // dov'è finché non premi "Segna tutte come lette". Chiesto dall'utente con
+    // un arretrato di centinaia di notizie: lì il segnalibro è il punto di
+    // ripartenza, e deve muoverlo solo lui.
+    freezeMarker: false,
   };
   let settings = DEFAULT_SETTINGS;
   let ignoreSet = new Set(); // parole extra da ignorare, scelte dall'utente (deaccentate)
@@ -833,6 +839,7 @@
       markerTitle: markerTitle,
       total: feed.length,
       dups: dups, // doppioni del sito nascosti in questa pagina (vedi hideDuplicates)
+      frozen: !!(settings && settings.freezeMarker),
     };
     setStore({ ["status_" + site.id]: lastStatus });
     setBadge(unread, approx);
@@ -905,19 +912,41 @@
   // evidenzia e centra, altrimenti passa alla pagina successiva. Il TTL, il tetto
   // di pagine e il confronto flag.page/pagina corrente evitano che un flag
   // rimasto appeso dirotti le visite normali all'archivio.
-  const SEEK_TTL_MS = 5 * 60 * 1000;
+  // 10 minuti: la ricerca può sfogliare decine di pagine, e ognuna è un
+  // caricamento vero (su hdblog anche 2-3 secondi). Resta comunque una durata
+  // breve rispetto al rischio che copre — un flag dimenticato che dirotta una
+  // visita manuale all'archivio.
+  const SEEK_TTL_MS = 10 * 60 * 1000;
 
   function archiveMaxPages() {
     return (site.archive && site.archive.maxPages) || 40;
   }
 
+  // Prima pagina della ricerca. Non sempre è la 1: su hdblog /page/1/ ripete le
+  // notizie che stanno già nella home, quindi si parte dalla 2 (è anche dove
+  // porta il bottone "altre notizie" del sito).
+  function archiveFirstPage() {
+    return (site.archive && site.archive.firstPage) || 1;
+  }
+
   function archiveUrlFor(page) {
     // Due formati: urlTemplate con {n} al posto del numero di pagina (hdblog:
-    // endpoint ajax del lazy-load, ?page=1,2,3...) oppure urlBase+N+".html"
-    // con la pagina 1 senza numero (hwupgrade: index.html, index2.html, ...).
+    // /page/2/, /page/3/, ...) oppure urlBase+N+".html" con la pagina 1 senza
+    // numero (hwupgrade: index.html, index2.html, ...).
     if (site.archive.urlTemplate)
       return site.archive.urlTemplate.replace("{n}", String(page));
     return site.archive.urlBase + (page > 1 ? String(page) : "") + ".html";
+  }
+
+  // URL della pagina N per il CONTEGGIO. Di norma è la stessa pagina che si
+  // naviga, ma un sito può esporre un endpoint equivalente più adatto al
+  // fetch: hdblog serve le pagine navigabili solo a una navigazione vera
+  // (429 al fetch), mentre l'endpoint ajax del lazy-load si scarica senza
+  // problemi e ha lo stesso markup. Numerazione propria, da 1.
+  function countUrlFor(page) {
+    if (site.archive && site.archive.countTemplate)
+      return site.archive.countTemplate.replace("{n}", String(page));
+    return archiveUrlFor(page);
   }
 
   // Numero di pagina se l'URL corrente è una pagina dell'archivio, altrimenti null.
@@ -937,7 +966,7 @@
   // Chiamata con la pagina successiva quando siamo GIÀ in una pagina dell'archivio:
   // ripartire da 1 rifarebbe il giro delle pagine appena scartate.
   async function startArchiveSeek(page) {
-    const p = page || 1;
+    const p = page || archiveFirstPage();
     if (p > archiveMaxPages()) return false;
     await setStore({ [K.seek]: { page: p, ts: Date.now() } });
     location.assign(archiveUrlFor(p));
@@ -964,6 +993,7 @@
       found: false,
       markerTitle: "",
       total: 0,
+      frozen: !!(settings && settings.freezeMarker),
     };
 
     const store = await getStore([K.marker, K.seek, "status_" + site.id]);
@@ -978,14 +1008,12 @@
     lastStatus.approx = !!home.approx;
     setBadge(lastStatus.unread, lastStatus.approx);
 
+    const seekHere = !!(marker && seek && seek.page === page);
     const seeking = !!(
-      marker &&
-      seek &&
-      seek.page === page &&
+      seekHere &&
       typeof seek.ts === "number" &&
       Date.now() - seek.ts < SEEK_TTL_MS
     );
-
     if (!marker) {
       if (seek) await removeStore(K.seek);
       return;
@@ -1006,12 +1034,36 @@
       return;
     }
 
-    if (!seeking) return; // visita normale dell'archivio: nessuna auto-navigazione
+    if (!seeking) {
+      // Ricerca arrivata fin qui ma SCADUTA per strada (TTL): si dice e si
+      // chiude, invece di lasciare l'utente su una pagina d'archivio senza
+      // spiegazioni. Senza flag è invece una visita normale dell'archivio:
+      // nessuna auto-navigazione e nessun messaggio.
+      if (seekHere) {
+        await removeStore(K.seek);
+        showSeekToast(
+          "La ricerca dell'ultima letta ci ha messo troppo e si è fermata a " +
+            "pagina " +
+            page +
+            ". Riprova dal pop-up per continuare da qui.",
+          true
+        );
+      }
+      return;
+    }
 
     if (!feed.length || page >= archiveMaxPages()) {
       // Fine ricerca senza esito (pagina vuota o tetto raggiunto): fermarsi,
-      // non navigare all'infinito.
+      // non navigare all'infinito. E dirlo: la ricerca sfoglia pagine da sola,
+      // se smette in silenzio sembra che si sia rotta qualcosa.
       await removeStore(K.seek);
+      showSeekToast(
+        "Non sono riuscito ad arrivare all'ultima letta: la ricerca si è " +
+          "fermata a pagina " +
+          page +
+          ". Il segnalibro resta dov'è.",
+        true
+      );
       try {
         console.log(
           "[Segnalibro] ricerca nell'archivio interrotta a pagina",
@@ -1020,6 +1072,9 @@
       } catch (e) {}
       return;
     }
+    // Ogni pagina è un caricamento nuovo: il toast dice a che punto siamo,
+    // altrimenti si vedono solo pagine che scorrono da sole.
+    showSeekToast("Cerco l'ultima letta… pagina " + page);
     // ts originale invariato: il TTL limita la durata TOTALE della ricerca.
     await setStore({ [K.seek]: { page: page + 1, ts: seek.ts } });
     location.assign(archiveUrlFor(page + 1));
@@ -1038,29 +1093,37 @@
   let refined = null; // { count, exact } — esito del conteggio (null = non fatto)
   let refining = false; // conteggio in corso: il toast aspetta l'esito
 
+  // Scarica una pagina del sito (stessa origine: nessun permesso extra) e la
+  // restituisce parsata. Senza credenziali: sono pagine pubbliche, non serve
+  // presentarsi come l'utente (vedi PRIVACY.md).
+  async function fetchFeedDoc(url) {
+    try {
+      const resp = await fetch(url, { credentials: "omit" });
+      if (!resp.ok) return null;
+      return new DOMParser().parseFromString(await resp.text(), "text/html");
+    } catch (e) {
+      return null;
+    }
+  }
+
   async function countUnreadInArchive(markerKey) {
     const seen = new Set();
     let count = 0;
     // Tetto per sito: le pagine hanno dimensioni diverse (hwupgrade ~30
     // notizie, hdblog ~9-10) e il default coprirebbe troppo poco.
     const maxPages = site.archive.countMaxPages || COUNT_MAX_PAGES;
+    // Quel che abbiamo già contato quando la sequenza si interrompe (rete,
+    // markup, fine dell'archivio) è comunque un limite inferiore valido: meglio
+    // "90+" che ricadere sul numero di notizie caricate in pagina.
+    const partial = () => (count > 0 ? { count: count, exact: false } : null);
     for (let page = 1; page <= maxPages; page++) {
-      const url = archiveUrlFor(page);
-      let articles;
-      try {
-        const resp = await fetch(url, { credentials: "omit" });
-        if (!resp.ok) return null;
-        const doc = new DOMParser().parseFromString(
-          await resp.text(),
-          "text/html"
-        );
-        articles = collectArticles(doc, url);
-      } catch (e) {
-        return null;
-      }
-      // Pagina senza notizie = markup cambiato o fine archivio: meglio nessun
-      // numero (fallback "N+") che un conteggio sbagliato.
-      if (!articles.length) return null;
+      const url = countUrlFor(page);
+      const doc = await fetchFeedDoc(url);
+      if (!doc) return partial();
+      const articles = collectArticles(doc, url);
+      // Pagina senza notizie = fine dell'archivio o markup cambiato (hdblog
+      // risponde così da page=11 in poi): non si va oltre.
+      if (!articles.length) return partial();
       for (const a of articles) {
         // Le pagine possono sovrapporsi (il feed scorre tra un fetch e l'altro).
         if (seen.has(a.key)) continue;
@@ -1110,7 +1173,22 @@
     applyHighlight(); // ri-applica col numero esatto (o sblocca il toast col fallback)
   }
 
+  // ---- "Vai all'ultima letta" ----
+
+  let seekBusy = false;
+
   async function scrollToMarker() {
+    // Popup e toast possono chiamarla entrambi: una ricerca alla volta.
+    if (seekBusy) return false;
+    seekBusy = true;
+    try {
+      return await seekMarker();
+    } finally {
+      seekBusy = false;
+    }
+  }
+
+  async function seekMarker() {
     let el = document.querySelector(".hdb-marker");
     // Se il segnalibro non è ancora nel DOM (notizia sotto la piega non ancora
     // caricata), scendi un po' alla volta per forzarne il caricamento, poi
@@ -1118,9 +1196,23 @@
     // MOLTO in basso (tante notizie accumulate): si smette solo quando la pagina
     // non scende più da un po' (fondo raggiunto e niente di nuovo caricato) o a
     // un tetto massimo di sicurezza.
-    // Sui feed FISSI (site.feedStatic: tutto il feed è già nel DOM) scrollare
-    // non carica nulla: si salta lo scroll e si va dritti al fallback archivio.
-    if (!el && state.markerKey && !site.feedStatic) {
+    // Tre casi in cui scrollare è inutile e si va dritti all'archivio:
+    //  - feed FISSO (site.feedStatic: è già tutto nel DOM);
+    //  - siamo GIÀ in una pagina d'archivio (elenco statico: la ricerca
+    //    prosegue alla pagina dopo, non scorrendo questa);
+    //  - il conteggio ha già sfogliato TUTTO quel che il sito serve alla home
+    //    senza trovare il segnalibro (refined.exact === false): è oltre il muro
+    //    del lazy-load, scrollare non lo farà comparire — e sono ~25 secondi di
+    //    attesa a vuoto prima di arrivare all'archivio.
+    const beyondFeed = !!(refined && !refined.exact);
+    const onArchivePage = archivePageNum() !== null;
+    if (
+      !el &&
+      state.markerKey &&
+      !site.feedStatic &&
+      !beyondFeed &&
+      !onArchivePage
+    ) {
       let stuck = 0;
       for (let i = 0; i < 120 && !el && stuck < 8; i++) {
         const before = window.scrollY;
@@ -1131,21 +1223,24 @@
         el = document.querySelector(".hdb-marker");
       }
     }
-    if (!el) {
-      // Feed finito senza trovare il segnalibro: se il sito ha l'archivio
-      // paginato, la ricerca continua lì (vedi initArchive). Con countOnly
-      // (hdblog) l'archivio è un endpoint ajax buono solo per CONTARE, non
-      // per navigarci: lì l'ultima letta si raggiunge scrollando.
-      if (site.archive && !site.archive.countOnly && state.markerKey) {
-        // Se siamo già in una pagina dell'archivio, si riprende da quella DOPO:
-        // le precedenti le abbiamo appena scartate.
-        const cur = archivePageNum();
-        return await startArchiveSeek(cur === null ? 1 : cur + 1);
-      }
-      return false;
+    if (el) {
+      flashAndCenter(el);
+      return true;
     }
-    flashAndCenter(el);
-    return true;
+
+    // Feed della pagina finito senza trovare il segnalibro: la ricerca continua
+    // nell'ARCHIVIO paginato del sito, pagina per pagina (vedi initArchive) —
+    // /news/indexN.html su hwupgrade, /page/N/ su hdblog (le pagine del
+    // bottone "Clicca qui per Altre Notizie").
+    if (site.archive && state.markerKey) {
+      // Se siamo già in una pagina dell'archivio, si riprende da quella DOPO:
+      // le precedenti le abbiamo appena scartate.
+      const cur = archivePageNum();
+      return await startArchiveSeek(
+        cur === null ? archiveFirstPage() : cur + 1
+      );
+    }
+    return false;
   }
 
   // ---- ricarica "pulita" (senza spostare il segnalibro) ----
@@ -1286,10 +1381,9 @@
       // il lazy-load; sui siti con archivio paginato prosegue la ricerca lì).
       return {
         num: formatUnread(status.unread, status.approx),
-        title:
-          site.archive && !site.archive.countOnly
-            ? "notizie nuove (l'ultima letta è nell'archivio)"
-            : "notizie nuove (l'ultima letta è più in basso)",
+        title: site.archive
+          ? "notizie nuove"
+          : "notizie nuove",
         canGo: true,
       };
     }
@@ -1353,6 +1447,62 @@
     toastEl.querySelector(".hdb-toast-num").textContent = msg.num;
     toastEl.querySelector(".hdb-toast-title").textContent = msg.title;
     toastEl.querySelector(".hdb-toast-go").style.display = msg.canGo ? "" : "none";
+  }
+
+  // -------- toast della ricerca ("Vai all'ultima letta") --------
+  // La ricerca dell'ultima letta può sfogliare parecchie pagine dell'archivio,
+  // una navigazione dopo l'altra: senza un segnale sullo schermo sembra che il
+  // browser stia impazzendo (o, se finisce a vuoto, che il pulsante non abbia
+  // fatto nulla — è così che il guasto è apparso all'utente).
+  // Questo toast non dipende dall'impostazione showToast: è la risposta a un
+  // clic, non un avviso che arriva da solo. La × ferma la ricerca togliendo il
+  // flag seek, così la pagina successiva non riparte da sola.
+  let seekEl = null;
+  let seekTimer = null;
+
+  function showSeekToast(text, final) {
+    if (!seekEl) {
+      // I due toast stanno nello stesso angolo: quello delle notizie nuove ha
+      // già fatto il suo lavoro (l'utente ha premuto il pulsante), si toglie.
+      dismissToast();
+      seekEl = document.createElement("div");
+      seekEl.className = "hdb-toast hdb-toast-seek";
+      seekEl.innerHTML =
+        '<span class="hdb-spin"></span>' +
+        '<span class="hdb-toast-body"><span class="hdb-toast-title"></span></span>' +
+        '<button type="button" class="hdb-toast-close" aria-label="Chiudi">&times;</button>';
+      (document.body || document.documentElement).appendChild(seekEl);
+      seekEl.querySelector(".hdb-toast-close").addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (K) removeStore(K.seek); // niente auto-navigazione alla prossima pagina
+        dismissSeekToast();
+      });
+      requestAnimationFrame(() => {
+        if (seekEl) seekEl.classList.add("hdb-toast-in");
+      });
+    }
+    seekEl.querySelector(".hdb-toast-title").textContent = text;
+    seekEl.classList.toggle("hdb-toast-final", !!final);
+    if (seekTimer) {
+      clearTimeout(seekTimer);
+      seekTimer = null;
+    }
+    // Il messaggio finale resta un po' e poi se ne va da solo; quello di
+    // avanzamento resta finché la ricerca è in corso.
+    if (final) seekTimer = setTimeout(dismissSeekToast, 9000);
+  }
+
+  function dismissSeekToast() {
+    if (seekTimer) {
+      clearTimeout(seekTimer);
+      seekTimer = null;
+    }
+    if (!seekEl) return;
+    const el = seekEl;
+    seekEl = null;
+    el.classList.remove("hdb-toast-in");
+    el.classList.add("hdb-toast-out");
+    setTimeout(() => el.remove(), 300);
   }
 
   // -------- messaggi dal popup --------
@@ -1499,6 +1649,13 @@
       // aperto la pagina, non da quelle uscite mentre stavi leggendo.
       marker = store[K.marker] || store[K.pending] || currentNewest;
       pending = store[K.pending] || currentNewest;
+    } else if (settings.freezeMarker) {
+      // Segnalibro bloccato dalle impostazioni: non avanza mai da solo, nemmeno
+      // dopo averlo raggiunto. Solo "Segna tutte come lette" lo sposta.
+      // "pending" continua ad aggiornarsi: se un giorno l'opzione si spegne, il
+      // registro riparte dalla notizia più recente dell'ultimo caricamento.
+      marker = store[K.marker] || store[K.pending] || currentNewest;
+      pending = currentNewest;
     } else if (store[K.reached]) {
       // Nella visita precedente il segnalibro era stato RAGGIUNTO (visto sullo
       // schermo): avanza di un passo — il marker prende il 2° segnalibro
