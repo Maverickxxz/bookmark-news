@@ -135,12 +135,16 @@ check(
   archivePageNum(hdblog, "/linux/articoli/n667390/linux-72-ufficiale/"),
   null
 );
+// v0.4.0: il conteggio resta sull'endpoint ajax, ma in UNA richiesta sola —
+// pages.php?page=1&b=10 restituisce tutti i blocchi insieme (~100 notizie) in
+// un'istantanea coerente, invece di 10 fetch su una lista che intanto scorre.
+// Vedi scratchpad/test-deep-seek.js.
 check(
   "il conteggio usa l'endpoint ajax, non le pagine navigabili",
-  countUrlFor(hdblog, 3),
-  "https://www.hdblog.it/new_files/ajax/pages.php?page=3"
+  countUrlFor(hdblog, 1),
+  "https://www.hdblog.it/new_files/ajax/pages.php?page=1&b=10"
 );
-check("conteggio fermato al muro dell'ajax", hdblog.archive.countMaxPages, 10);
+check("conteggio in una richiesta sola (b=10)", hdblog.archive.countMaxPages, 1);
 
 console.log("\n== 1b) hwupgrade non è cambiato ==");
 check("parte da pagina 1", archiveFirstPage(hwu), 1);

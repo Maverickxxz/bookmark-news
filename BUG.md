@@ -8,6 +8,68 @@ Le spiegazioni lunghe della logica stanno in `CLAUDE.md`; qui c'è solo la stori
 
 ---
 
+## #15 — Su hdblog «Vai all'ultima letta» sfogliava 40 pagine d'archivio per una notizia che stava nella home
+**Versione:** 0.4.1 · **Data:** 26/08/2026 · **Sito:** hdblog · **Segnalato da:** utente
+
+- **Sintomo:** con **97 notizie nuove**, "Vai all'ultima letta" ha scrollato la home fino in fondo,
+  è passato alle pagine `hdblog.it/page/N/` ed è arrivato **fino a pagina 40** senza trovare
+  niente. «È come se avesse perso il segnalibro.» Cercando a mano, invece, l'ultima letta era lì,
+  regolarmente evidenziata: il segnalibro non si era perso, era la ricerca che non ci arrivava.
+- **Causa:** quattro cose che si sommano, tutte misurate sul sito vero
+  (`scratchpad/test-deep-seek.js`).
+  1. **La ricerca mollava la home troppo presto.** "97 non lette" è un numero **esatto**, e il
+     conteggio esatto si ferma al muro del lazy-load: quindi il segnalibro era la 98ª notizia di
+     ~100, cioè **dentro** il feed della home (20 renderizzate dal server + 8 blocchi da 10
+     caricati scrollando). Ma la condizione di uscita dello scroll era "8 giri di fila senza che
+     `scrollY` cambi" = **1,6 secondi**, e ogni blocco è una richiesta di rete che sul sito vero ci
+     mette 1-3 secondi: durante l'attesa la pagina è già in fondo e non si muove di un pixel.
+     Bastava un blocco lento e la home veniva abbandonata a un terzo.
+  2. **L'archivio comincia dopo la home.** `/page/2/` è dove porta il pulsante del sito *dopo* aver
+     esaurito il lazy-load: la 98ª notizia non poteva starci. Sfogliare da lì in avanti era, per
+     costruzione, tempo perso — e nessuno se ne accorgeva perché la passeggiata non aveva modo di
+     sapere di essere già oltre il bersaglio.
+  3. **Di ogni pagina d'archivio si guardava solo la prima fetta.** Le `/page/N/` sono fatte con lo
+     stesso stampo della home: mostrano ~20 notizie e caricano le altre mentre scorri. `initArchive`
+     leggeva solo quelle renderizzate e passava oltre: ~80% di ogni pagina non veniva nemmeno
+     guardato.
+  4. **Il sito porta via la pagina da solo.** Arrivati in fondo, il suo handler dello scroll fa
+     `$('.btn_more').click()`; finito il lazy-load quel pulsante non carica più niente ed è un
+     link a `/page/2/`, quindi il clic automatico **naviga** mentre la ricerca sta ancora lavorando
+     (verificato nel JS del sito: `global_v134.js`, `MAX_NUM_PAGES = 10`, e l'ultimo blocco servito
+     contiene `<a href="/page/2/" class="btn_more">` senza più `onclick`).
+- **Correzione:**
+  - `growFeedByScrolling()` sostituisce il vecchio ciclo: si scrolla finché **il feed cresce**, non
+    finché si muove lo scroll. Si smette dopo 7s di immobilità totale, o 20s senza che arrivino
+    notizie nuove (pagina che si gonfia di pubblicità ma non di articoli), o al tetto di 90s. Con
+    blocchi da 6 secondi l'uno arriva comunque in fondo alle ~100 notizie.
+  - `installAutoNavGuard()`: durante la ricerca i clic **non fidati** (`isTrusted === false`, cioè
+    generati dallo script del sito) non navigano più via. I clic dell'utente passano, e l'handler
+    inline del sito gira lo stesso — `preventDefault` toglie la navigazione, non il caricamento del
+    blocco.
+  - Le **pagine d'archivio** vengono scrollate come la home prima di dichiarare "non c'è" (solo
+    durante una ricerca: una visita normale non deve muoversi da sola; sui feed statici, hwupgrade,
+    la funzione esce subito).
+  - Il flag `seek` si mette **prima** di scrollare (se il sito ci sposta lo stesso, la pagina
+    d'arrivo riprende la ricerca invece di lasciare l'utente lì) e accetta le pagine **≥** a quella
+    attesa, non solo quella esatta.
+  - La passeggiata nell'archivio ha ora un **limite dimostrabile**: con il conteggio esatto si
+    porta dietro `target` = posizione del segnalibro, e l'archivio va solo indietro nel tempo —
+    superate `target` notizie esaminate, il segnalibro è alle spalle e le pagine successive non
+    possono contenerlo. Ci si ferma dicendolo, invece di arrivare a pagina 40.
+  - `sites.js`: il conteggio di hdblog usa `pages.php?page=1&b=10` — il parametro che il sito stesso
+    usa quando ricarica una home già scorsa — e riceve **tutte le ~100 notizie raggiungibili in una
+    richiesta**, in un'unica istantanea coerente. Prima erano 10 fetch su una lista **viva**: se il
+    sito pubblicava nel frattempo la sequenza scivolava e le ultime notizie si perdevano per strada
+    (lo stesso difetto che genera i doppioni, bug #12). Ora `refined.exact` è un segnale di cui
+    fidarsi: dice esattamente se il segnalibro è dentro o oltre il muro.
+- **Verifica:** `scratchpad/test-deep-seek.js` (38 controlli: pazienza dello scroll con blocchi
+  lenti — vecchia logica vs nuova, uscita per pagina che cresce senza notizie, limite dimostrabile
+  della passeggiata con e senza `target`, flag `seek` tollerante, guard sui clic non fidati,
+  config) + check live: una richiesta = ~100 notizie senza doppioni, home = prefisso della sequenza,
+  muro a `page=11`, `/page/2/` non scaricabile (429).
+
+---
+
 ## #14 — Su hdblog «Vai all'ultima letta» si fermava sul bottone "Altre Notizie"
 **Versione:** 0.3.9 · **Data:** 17/08/2026 · **Sito:** hdblog · **Segnalato da:** utente
 

@@ -121,9 +121,20 @@ const NEWS_SITES = [
       maxPages: 40,
       // Per CONTARE si usa invece l'endpoint ajax del lazy-load: stesso markup,
       // frammenti leggeri, e soprattutto scaricabile (le pagine navigabili no).
-      // Si ferma a page=10, quindi oltre le ~99 il numero resta un "90+".
-      countTemplate: "https://www.hdblog.it/new_files/ajax/pages.php?page={n}",
-      countMaxPages: 10,
+      // Il parametro `b` è quello che il sito stesso usa quando ricarica una
+      // home già scorsa (hash #?t=…&b=N -> pages.php?page=3&b=N): con b=10 il
+      // server risponde con TUTTI i blocchi in una volta sola, cioè le ~100
+      // notizie raggiungibili scrollando la home, in UNA richiesta e in
+      // un'unica istantanea coerente. Meglio delle 10 richieste separate di
+      // prima: quelle sono paginate a offset sulla lista VIVA, quindi se il
+      // sito pubblica mentre si conta la sequenza scivola e le ultime notizie
+      // si perdono per strada (è lo stesso difetto che genera i doppioni, vedi
+      // v0.3.7). Una pagina sola basta e avanza: countMaxPages: 1.
+      // Se il segnalibro non è in quelle ~100 è oltre il muro del lazy-load
+      // (exact=false, badge "100+") e la ricerca sa già che deve andare
+      // nell'archivio invece di scrollare a vuoto.
+      countTemplate: "https://www.hdblog.it/new_files/ajax/pages.php?page={n}&b=10",
+      countMaxPages: 1,
     },
   },
 

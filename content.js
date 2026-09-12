@@ -903,6 +903,105 @@
     window.addEventListener("scroll", scheduleReapply, { passive: true });
   }
 
+  // ---- caricare TUTTO il feed a forza di scroll ----
+  // Il feed lazy arriva a blocchi, e ogni blocco è una richiesta di rete: sul
+  // sito vero ci mette 1-3 secondi, durante i quali la pagina è già in fondo e
+  // non scende di un pixel. La vecchia condizione di uscita — "8 scroll di fila
+  // senza che scrollY cambi", cioè 1,6 secondi — scattava proprio lì, in mezzo a
+  // un caricamento, e la ricerca mollava la home molto prima del muro delle ~100
+  // notizie di hdblog (bug #15: segnalibro a 97 non lette, cioè DENTRO il feed,
+  // e la ricerca finita a sfogliare l'archivio dove quella notizia non c'è).
+  //
+  // Il criterio giusto non è il movimento dello scroll ma la CRESCITA del feed:
+  //  - arrivano notizie nuove          -> si continua (il muro non è arrivato);
+  //  - non si muove più niente         -> fondo raggiunto, si smette (IDLE_MS);
+  //  - la pagina cresce (pubblicità, immagini) ma di notizie non ne arrivano più
+  //    -> si smette lo stesso (FEED_IDLE_MS), altrimenti si scorrerebbe a vuoto
+  //    fino al tetto di tempo.
+  const GROW_MAX_MS = 90 * 1000; // tetto assoluto: ~100 notizie a blocchi di 10
+  const GROW_IDLE_MS = 7000; // immobilità totale = fondo della pagina
+  const GROW_FEED_IDLE_MS = 20000; // cresce la pagina ma non le notizie
+
+  // Il sito, quando arrivi in fondo, CLICCA DA SOLO il suo pulsante "altre
+  // notizie" (hdblog: handler sullo scroll -> $('.btn_more').click()). Finché
+  // quel pulsante carica un altro blocco va benissimo — è così che il feed
+  // cresce mentre scorriamo. Ma quando il lazy-load ha finito (hdblog: 10
+  // blocchi) il pulsante diventa un LINK alla pagina successiva dell'archivio,
+  // e lo stesso clic automatico ci porta VIA dalla pagina mentre stiamo ancora
+  // cercando: la ricerca perde la home proprio quando l'aveva caricata tutta.
+  // Qui si annulla la navigazione dei clic NON fidati (isTrusted=false = generati
+  // da script). Quelli dell'utente passano; e l'handler inline del sito gira lo
+  // stesso, perché preventDefault toglie solo la navigazione, non il codice che
+  // carica il blocco.
+  function installAutoNavGuard() {
+    const onClick = (e) => {
+      if (e.isTrusted) return;
+      const a = e.target && e.target.closest ? e.target.closest("a[href]") : null;
+      if (!a) return;
+      let dest;
+      try {
+        dest = new URL(a.getAttribute("href"), location.href);
+      } catch (err) {
+        return;
+      }
+      // Un'ancora nella stessa pagina non porta via nessuno: si lascia passare.
+      if (dest.href.split("#")[0] === location.href.split("#")[0]) return;
+      e.preventDefault();
+      try {
+        console.log(
+          "[Segnalibro] navigazione automatica del sito bloccata durante la ricerca:",
+          dest.href
+        );
+      } catch (err) {}
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }
+
+  // Scorre la pagina finché il feed smette di crescere (o finché compare la
+  // notizia cercata) e restituisce il feed finale. onGrow, se passato, viene
+  // chiamata a ogni giro con il feed corrente (la home la usa per ri-applicare
+  // l'evidenziazione e aggiornare il toast di avanzamento).
+  async function growFeedByScrolling(targetKey, onGrow) {
+    if (site.feedStatic) return getFeedArticles(); // è già tutto nel DOM
+    const t0 = Date.now();
+    let feed = getFeedArticles();
+    let bestLen = feed.length;
+    let bestY = window.scrollY;
+    let lastAny = t0; // ultima volta che qualcosa si è mosso
+    let lastFeed = t0; // ultima volta che sono arrivate notizie
+    const releaseGuard = installAutoNavGuard();
+    try {
+      while (Date.now() - t0 < GROW_MAX_MS) {
+        if (seekCancelled) break; // × del toast: l'utente ha annullato
+        if (targetKey && feed.some((a) => a.key === targetKey)) break;
+        window.scrollBy(0, Math.max(600, Math.round(window.innerHeight * 0.9)));
+        await sleep(250);
+        feed = getFeedArticles();
+        const now = Date.now();
+        if (feed.length > bestLen) {
+          bestLen = feed.length;
+          lastFeed = now;
+          lastAny = now;
+        }
+        if (window.scrollY > bestY) {
+          bestY = window.scrollY;
+          lastAny = now;
+        }
+        if (onGrow) {
+          try {
+            onGrow(feed);
+          } catch (e) {}
+        }
+        if (now - lastAny > GROW_IDLE_MS) break;
+        if (now - lastFeed > GROW_FEED_IDLE_MS) break;
+      }
+    } finally {
+      releaseGuard();
+    }
+    return getFeedArticles();
+  }
+
   // ---- archivio paginato ("tutte le notizie") ----
   // Su alcuni siti (hwupgrade) il feed della home è FISSO: finite le ~40 notizie
   // lo scroll non carica altro, e le più vecchie stanno in un archivio a pagine
@@ -965,10 +1064,20 @@
   // Avvia (o prosegue) la ricerca del segnalibro nell'archivio a partire da `page`.
   // Chiamata con la pagina successiva quando siamo GIÀ in una pagina dell'archivio:
   // ripartire da 1 rifarebbe il giro delle pagine appena scartate.
-  async function startArchiveSeek(page) {
+  //
+  // `target` (quando il conteggio è ESATTO) è la posizione del segnalibro nella
+  // sequenza del sito: serve a sapere quando smettere. L'archivio scorre dal
+  // recente al vecchio, quindi dopo aver esaminato più di `target` notizie
+  // partendo dalla prima pagina, il segnalibro NON PUÒ essere più avanti — o
+  // l'archivio comincia dopo di lui, o non lo elenca affatto. In entrambi i casi
+  // continuare a sfogliare è tempo perso: è quello che è successo all'utente,
+  // 40 pagine per una notizia che stava a 97 (bug #15).
+  async function startArchiveSeek(page, target) {
     const p = page || archiveFirstPage();
     if (p > archiveMaxPages()) return false;
-    await setStore({ [K.seek]: { page: p, ts: Date.now() } });
+    const flag = { page: p, ts: Date.now(), scanned: 0 };
+    if (typeof target === "number") flag.target = target;
+    await setStore({ [K.seek]: flag });
     location.assign(archiveUrlFor(p));
     return true;
   }
@@ -1008,7 +1117,11 @@
     lastStatus.approx = !!home.approx;
     setBadge(lastStatus.unread, lastStatus.approx);
 
-    const seekHere = !!(marker && seek && seek.page === page);
+    // Pagina >= a quella attesa e non solo uguale: se il sito ci ha spostati da
+    // solo (o una pagina ha redirezionato) la ricerca prosegue da dove siamo
+    // finiti invece di spegnersi in silenzio. Va sempre in AVANTI, quindi non
+    // può tornare a sfogliare pagine già scartate.
+    const seekHere = !!(marker && seek && page >= (seek.page | 0));
     const seeking = !!(
       seekHere &&
       typeof seek.ts === "number" &&
@@ -1020,9 +1133,29 @@
     }
     state.markerKey = marker;
 
-    const feed = await waitForFeed();
+    let feed = await waitForFeed();
+    let idx = feed.findIndex((a) => a.key === marker);
+
+    // Le pagine dell'archivio di hdblog sono fatte con lo stesso stampo della
+    // home: mostrano le prime ~20 notizie e caricano le altre mentre scorri.
+    // Guardare solo quelle già renderizzate vuol dire saltare l'80% della
+    // pagina — la ricerca sfogliava 40 pagine vedendone una fetta ciascuna e
+    // non trovava mai niente (bug #15). Si scorre solo durante una ricerca:
+    // una visita normale all'archivio non deve muoversi da sola. Sui feed
+    // statici (hwupgrade) growFeedByScrolling esce subito.
+    let cancelled = false;
+    if (idx < 0 && seeking) {
+      seekCancelled = false;
+      showSeekToast("Cerco l'ultima letta… pagina " + page);
+      feed = await growFeedByScrolling(marker, (f) => {
+        showSeekToast(
+          "Cerco l'ultima letta… pagina " + page + ", " + f.length + " notizie"
+        );
+      });
+      idx = feed.findIndex((a) => a.key === marker);
+      cancelled = seekCancelled; // × del toast: la ricerca finisce qui
+    }
     lastStatus.total = feed.length;
-    const idx = feed.findIndex((a) => a.key === marker);
 
     if (idx >= 0) {
       // Trovata: evidenzia (e chiudi l'eventuale ricerca in corso).
@@ -1030,9 +1163,16 @@
       markElement(feed[idx].el);
       lastStatus.found = true;
       lastStatus.markerTitle = feed[idx].title;
-      if (seeking) flashAndCenter(feed[idx].el);
+      if (seeking) {
+        dismissSeekToast();
+        flashAndCenter(feed[idx].el);
+      }
       return;
     }
+
+    // Annullata con la × mentre caricava la pagina: niente auto-navigazione e
+    // niente messaggio (la × è già una risposta).
+    if (cancelled) return;
 
     if (!seeking) {
       // Ricerca arrivata fin qui ma SCADUTA per strada (TTL): si dice e si
@@ -1052,16 +1192,32 @@
       return;
     }
 
-    if (!feed.length || page >= archiveMaxPages()) {
-      // Fine ricerca senza esito (pagina vuota o tetto raggiunto): fermarsi,
-      // non navigare all'infinito. E dirlo: la ricerca sfoglia pagine da sola,
-      // se smette in silenzio sembra che si sia rotta qualcosa.
+    // Notizie esaminate da quando la ricerca è entrata nell'archivio. Con il
+    // conteggio esatto (seek.target = posizione del segnalibro) diventa una
+    // prova: superata quella soglia il segnalibro è ormai alle spalle e le
+    // pagine successive, che vanno solo più indietro nel tempo, non possono
+    // contenerlo. Il margine copre le sovrapposizioni fra pagine contigue.
+    const scanned = (seek.scanned | 0) + feed.length;
+    const overshot =
+      typeof seek.target === "number" && scanned > seek.target + 30;
+
+    if (!feed.length || overshot || page >= archiveMaxPages()) {
+      // Fine ricerca senza esito (pagina vuota, tetto raggiunto, o segnalibro
+      // ormai superato): fermarsi, non navigare all'infinito. E dirlo: la
+      // ricerca sfoglia pagine da sola, se smette in silenzio sembra che si sia
+      // rotta qualcosa.
       await removeStore(K.seek);
       showSeekToast(
-        "Non sono riuscito ad arrivare all'ultima letta: la ricerca si è " +
-          "fermata a pagina " +
-          page +
-          ". Il segnalibro resta dov'è.",
+        overshot
+          ? "Ho sfogliato l'archivio oltre la posizione dell'ultima letta senza " +
+              "trovarla: o è ancora nella home, o il sito non la elenca qui. " +
+              "Ricerca fermata a pagina " +
+              page +
+              ", il segnalibro resta dov'è."
+          : "Non sono riuscito ad arrivare all'ultima letta: la ricerca si è " +
+              "fermata a pagina " +
+              page +
+              ". Il segnalibro resta dov'è.",
         true
       );
       try {
@@ -1074,9 +1230,13 @@
     }
     // Ogni pagina è un caricamento nuovo: il toast dice a che punto siamo,
     // altrimenti si vedono solo pagine che scorrono da sole.
-    showSeekToast("Cerco l'ultima letta… pagina " + page);
+    showSeekToast(
+      "Non è a pagina " + page + ": vado a pagina " + (page + 1) + "…"
+    );
     // ts originale invariato: il TTL limita la durata TOTALE della ricerca.
-    await setStore({ [K.seek]: { page: page + 1, ts: seek.ts } });
+    const next = { page: page + 1, ts: seek.ts, scanned: scanned };
+    if (typeof seek.target === "number") next.target = seek.target;
+    await setStore({ [K.seek]: next });
     location.assign(archiveUrlFor(page + 1));
   }
 
@@ -1181,6 +1341,7 @@
     // Popup e toast possono chiamarla entrambi: una ricerca alla volta.
     if (seekBusy) return false;
     seekBusy = true;
+    seekCancelled = false; // nuova ricerca: l'eventuale annullamento è vecchio
     try {
       return await seekMarker();
     } finally {
@@ -1188,22 +1349,30 @@
     }
   }
 
+  // Posizione del segnalibro nella sequenza del sito, se la conosciamo con
+  // esattezza (= quante notizie non lette): null se è solo un limite inferiore.
+  function exactMarkerIndex() {
+    if (refined) return refined.exact ? refined.count : null;
+    if (lastStatus && lastStatus.archive && !lastStatus.approx && lastStatus.unread > 0)
+      return lastStatus.unread;
+    return null;
+  }
+
   async function seekMarker() {
     let el = document.querySelector(".hdb-marker");
     // Se il segnalibro non è ancora nel DOM (notizia sotto la piega non ancora
-    // caricata), scendi un po' alla volta per forzarne il caricamento, poi
-    // ri-applica la classe e fermati appena compare. Il segnalibro può stare
-    // MOLTO in basso (tante notizie accumulate): si smette solo quando la pagina
-    // non scende più da un po' (fondo raggiunto e niente di nuovo caricato) o a
-    // un tetto massimo di sicurezza.
+    // caricata), si scende a forza di scroll finché il feed smette di crescere
+    // (growFeedByScrolling), ri-applicando l'evidenziazione a ogni giro e
+    // fermandosi appena la notizia compare. Il segnalibro può stare MOLTO in
+    // basso: la home di hdblog arriva a ~100 notizie in 8 blocchi, ognuno una
+    // richiesta di rete, quindi la pazienza è tutto (vedi bug #15).
     // Tre casi in cui scrollare è inutile e si va dritti all'archivio:
     //  - feed FISSO (site.feedStatic: è già tutto nel DOM);
-    //  - siamo GIÀ in una pagina d'archivio (elenco statico: la ricerca
-    //    prosegue alla pagina dopo, non scorrendo questa);
+    //  - siamo GIÀ in una pagina d'archivio (la ricerca prosegue alla pagina
+    //    dopo; questa l'ha già sfogliata initArchive);
     //  - il conteggio ha già sfogliato TUTTO quel che il sito serve alla home
     //    senza trovare il segnalibro (refined.exact === false): è oltre il muro
-    //    del lazy-load, scrollare non lo farà comparire — e sono ~25 secondi di
-    //    attesa a vuoto prima di arrivare all'archivio.
+    //    del lazy-load, scrollare non lo farà comparire.
     const beyondFeed = !!(refined && !refined.exact);
     const onArchivePage = archivePageNum() !== null;
     if (
@@ -1213,20 +1382,42 @@
       !beyondFeed &&
       !onArchivePage
     ) {
-      let stuck = 0;
-      for (let i = 0; i < 120 && !el && stuck < 8; i++) {
-        const before = window.scrollY;
-        window.scrollBy(0, Math.max(600, Math.round(window.innerHeight * 0.9)));
-        await sleep(200);
-        stuck = window.scrollY === before ? stuck + 1 : 0;
-        reapplyIfChanged();
-        el = document.querySelector(".hdb-marker");
+      // La ricerca è già "in corso" da adesso, prima ancora di scrollare: se il
+      // sito ci porta via da solo (il suo pulsante "altre notizie" cliccato
+      // dall'handler dello scroll) la pagina d'arrivo la RIPRENDE invece di
+      // lasciarci lì fermi. Il guard di growFeedByScrolling di norma lo
+      // impedisce; questo è il paracadute per i casi che non passano dal clic.
+      if (site.archive) {
+        const parachute = {
+          page: archiveFirstPage(),
+          ts: Date.now(),
+          scanned: 0,
+        };
+        const target = exactMarkerIndex();
+        if (typeof target === "number") parachute.target = target;
+        await setStore({ [K.seek]: parachute });
       }
+      showSeekToast("Cerco l'ultima letta… carico le notizie più vecchie");
+      await growFeedByScrolling(state.markerKey, (feed) => {
+        reapplyIfChanged();
+        showSeekToast(
+          "Cerco l'ultima letta… " + feed.length + " notizie caricate"
+        );
+      });
+      reapplyIfChanged();
+      el = document.querySelector(".hdb-marker");
+      // Trovata (o comunque finito lo scroll): il flag di ricerca non deve
+      // restare appeso, o la prossima visita all'archivio verrebbe dirottata.
+      if (site.archive && el) await removeStore(K.seek);
     }
     if (el) {
+      dismissSeekToast();
       flashAndCenter(el);
       return true;
     }
+    // Annullata con la × mentre caricava: non si prosegue nell'archivio (il
+    // flag l'ha già tolto il pulsante di chiusura).
+    if (seekCancelled) return false;
 
     // Feed della pagina finito senza trovare il segnalibro: la ricerca continua
     // nell'ARCHIVIO paginato del sito, pagina per pagina (vedi initArchive) —
@@ -1237,9 +1428,22 @@
       // le precedenti le abbiamo appena scartate.
       const cur = archivePageNum();
       return await startArchiveSeek(
-        cur === null ? archiveFirstPage() : cur + 1
+        cur === null ? archiveFirstPage() : cur + 1,
+        // Posizione esatta del segnalibro, quando la conosciamo: dice alla
+        // passeggiata nell'archivio quando è inutile andare oltre. Sulla home
+        // viene dal conteggio; da una pagina d'archivio (dove il conteggio non
+        // gira) è l'ultimo stato noto della home, se era un numero esatto.
+        exactMarkerIndex()
       );
     }
+    // Niente archivio (o niente segnalibro): meglio dirlo che restare muti —
+    // il pulsante sembrerebbe rotto.
+    if (state.markerKey)
+      showSeekToast(
+        "Non sono riuscito a trovare l'ultima letta in questa pagina. " +
+          "Il segnalibro resta dov'è.",
+        true
+      );
     return false;
   }
 
@@ -1459,6 +1663,10 @@
   // flag seek, così la pagina successiva non riparte da sola.
   let seekEl = null;
   let seekTimer = null;
+  // La × non deve solo togliere il flag (che ferma la pagina SUCCESSIVA): deve
+  // fermare anche quello che sta succedendo adesso, cioè lo scroll che carica il
+  // feed. Si azzera all'inizio di ogni ricerca.
+  let seekCancelled = false;
 
   function showSeekToast(text, final) {
     if (!seekEl) {
@@ -1474,6 +1682,7 @@
       (document.body || document.documentElement).appendChild(seekEl);
       seekEl.querySelector(".hdb-toast-close").addEventListener("click", (e) => {
         e.stopPropagation();
+        seekCancelled = true; // ferma lo scroll in corso
         if (K) removeStore(K.seek); // niente auto-navigazione alla prossima pagina
         dismissSeekToast();
       });
