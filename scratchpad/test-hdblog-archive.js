@@ -123,7 +123,7 @@ function decide(st, opts) {
 // ------------------------------------------------------------------ 1) URL
 
 console.log("\n== 1) archivio di hdblog: URL e numerazione ==");
-check("pagina 2 = la prima della ricerca", archiveFirstPage(hdblog), 2);
+check("pagina 1 = la prima della ricerca (v0.4.2: /page/1/ = sequenza completa della home)", archiveFirstPage(hdblog), 1);
 check("url pagina 2", archiveUrlFor(hdblog, 2), "https://www.hdblog.it/page/2/");
 check("url pagina 17", archiveUrlFor(hdblog, 17), "https://www.hdblog.it/page/17/");
 check("tetto pagine", archiveMaxPages(hdblog), 40);
@@ -172,9 +172,9 @@ PAGES[31] = []; // fine archivio
 {
   const marker = PAGES[7][3];
   const res = seekWalk(hdblog, PAGES, marker, null);
-  check("dalla home si parte da pagina 2", res.visited[0], 2);
+  check("dalla home (posizione ignota) si parte da pagina 1", res.visited[0], 1);
   check("si arriva alla pagina del segnalibro", res.found, true);
-  check("pagine visitate", res.visited, [2, 3, 4, 5, 6, 7]);
+  check("pagine visitate", res.visited, [1, 2, 3, 4, 5, 6, 7]);
 }
 {
   // già in una pagina d'archivio: si riprende dalla DOPO, non da capo

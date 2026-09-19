@@ -276,7 +276,8 @@ console.log("\n== config sites.js ==");
     true
   );
   check("hdblog: archivio navigabile /page/{n}/", hdblog.archive.urlTemplate, "https://www.hdblog.it/page/{n}/");
-  check("hdblog: la ricerca parte da pagina 2", hdblog.archive.firstPage, 2);
+  check("hdblog: la ricerca parte da pagina 1 (v0.4.2)", hdblog.archive.firstPage, 1);
+  check("hdblog: niente ricerca a forza di scroll (v0.4.2)", hdblog.noScrollSeek, true);
   check("hdblog: feed della home NON statico (si scrolla)", !!hdblog.feedStatic, false);
   check("hwupgrade: feed statico (non si scrolla)", hwu.feedStatic, true);
   check("hwupgrade: conteggio invariato", hwu.archive.countTemplate, undefined);

@@ -42,9 +42,17 @@
  *                   ferma su .../?refresh_ce e ogni ricaricamento sarebbe scambiato per
  *                   automatico.
  *
+ *   articleExclude  (opzionale) selettore di contenitori da IGNORARE: le notizie che
+ *                   matchano articleSelector ma stanno dentro uno di questi (es. una
+ *                   barra laterale con le ultime notizie) non fanno parte del feed.
+ *
  *   feedStatic      (opzionale) true se il feed della home è TUTTO nel DOM già al
  *                   caricamento (nessun lazy-load): scrollare non carica altre notizie,
  *                   quindi "Vai all'ultima letta" salta lo scroll e passa all'archivio.
+ *   noScrollSeek    (opzionale) true = "Vai all'ultima letta" NON scrolla la home per
+ *                   far caricare il feed lazy: se il segnalibro non è già in pagina va
+ *                   dritta all'archivio. Serve quando il lazy-load del sito non è
+ *                   affidabile (hdblog, vedi sotto) e l'archivio copre anche la home.
  *   archive         (opzionale) archivio paginato ("tutte le notizie") dove continuare
  *                   la ricerca del segnalibro quando non sta nel feed della home.
  *                   Le pagine archivio devono usare gli stessi articleSelector/linkSelector:
@@ -57,6 +65,17 @@
  *                               gruppo 1 = numero di pagina (vuoto = pagina 1)
  *                     firstPage prima pagina da cui far partire la ricerca (default 1;
  *                               2 se la pagina 1 ripete quel che c'è già nella home)
+ *                     perPage   (opzionale) notizie per pagina, quando la pagina
+ *                               `firstPage` comincia dalla notizia più recente: la
+ *                               ricerca salta direttamente alla pagina che contiene
+ *                               la posizione nota del segnalibro invece di sfogliare
+ *                               dall'inizio
+ *                     static    (opzionale) true se le pagine archivio sono già
+ *                               complete al caricamento (niente lazy-load): la
+ *                               ricerca non le scrolla
+ *                     idOrdered (opzionale) true se l'id numerico della notizia
+ *                               (idPrefix + cifre) cresce con la data: permette di
+ *                               accorgersi che la ricerca ha superato il segnalibro
  *                     maxPages  tetto di pagine esplorate in automatico (default 40)
  *                     countTemplate (opzionale) URL alternativo da usare SOLO per il
  *                               conteggio, con {n} al posto del numero di pagina: serve
@@ -83,6 +102,10 @@ const NEWS_SITES = [
     hosts: ["www.hdblog.it", "hdblog.it"],
     homePaths: ["/", ""],
     articleSelector: "article.newlist_normal",
+    // Le pagine /page/N/ hanno in fondo una barra laterale (#listnewssdx) con le 5
+    // notizie più recenti, stessa classe del feed: senza escluderla la pagina 2
+    // "finirebbe" con le notizie di oggi.
+    articleExclude: "#listnewssdx",
     linkSelector: "a.title_new[href], a.thumb_new_image[href], a[href]",
     idRegex: "/n(\\d+)/",
     idPrefix: "n",
@@ -99,25 +122,41 @@ const NEWS_SITES = [
     // sempre l'avanzamento del segnalibro.
     autoRefreshParam: "refresh_ce",
     // Il feed della home è LAZY: scrollando si caricano altre notizie via
-    // /new_files/ajax/pages.php?page=N (~9-10 notizie a pagina; la home
+    // /new_files/ajax/pages.php?page=N (~10 notizie a pagina; la home
     // server-rendered corrisponde alle pagine 1-2, il bottone "Altre Notizie"
-    // parte da page=3). La sequenza ajax ricalca esattamente la home
-    // (verificato: home = prefisso di p1+p2+p3), quindi serve per il CONTEGGIO
-    // ESATTO delle non lette (countTemplate qui sotto).
-    // Il feed della home ha però un MURO: il lazy-load si ferma a page=10 (da
-    // page=11 il server risponde con un blocco vuoto), cioè ~99 notizie in
-    // tutto (home ~19 + pagine 3..10). Più indietro di così le notizie stanno
-    // nelle pagine della paginazione — quelle del bottone "Clicca qui per Altre
-    // Notizie" — che si raggiungono solo NAVIGANDO: è l'archivio del sito, e la
-    // ricerca dell'ultima letta prosegue lì pagina per pagina, come su
-    // hwupgrade. (Scaricarle con fetch non funziona: rispondono 429 a chi non è
-    // una navigazione vera del browser. Vedi BUG #14.)
+    // parte da page=3). La sequenza ajax ricalca esattamente la home, quindi
+    // serve per il CONTEGGIO ESATTO delle non lette (countTemplate qui sotto).
+    //
+    // Da settembre 2026 però il lazy-load della home NON è più affidabile: il
+    // sito richiede e appende OGNI blocco DUE volte (page=3 x2, page=4 x2, ...)
+    // e il suo contatore (MAX_NUM_PAGES=10) si esaurisce dopo page=6: scrollando
+    // si arriva solo a ~60 notizie distinte invece di ~100 (misurato in Chrome,
+    // bug #16). Un segnalibro fra la 60ª e la 100ª non compare MAI nella home.
+    // Quindi niente ricerca a forza di scroll (noScrollSeek): se l'ultima letta
+    // non è già in pagina si va dritti all'archivio.
+    noScrollSeek: true,
+    // L'ARCHIVIO /page/N/ — quello del bottone "Clicca qui per Altre Notizie" —
+    // ora è STATICO: 100 notizie per pagina già tutte nel DOM, paginazione
+    // numerata, niente lazy-load. E /page/1/ è esattamente la sequenza
+    // completa della home (le stesse ~100 che il sito prometteva scrollando),
+    // /page/2/ le 100 dopo, e così via. Conoscendo la posizione del segnalibro
+    // (dal conteggio) si salta direttamente alla pagina giusta: posizione 0-99
+    // -> pagina 1, 100-199 -> pagina 2, ...
+    // (Scaricarle con fetch senza cookie non funziona: rispondono 429. Si
+    // raggiungono navigando. Vedi BUG #14.)
     archive: {
       urlTemplate: "https://www.hdblog.it/page/{n}/",
       pathRegex: "^/page/(\\d+)/?$",
-      // Pagina 1 ripete le notizie che stanno già nella home: la ricerca parte
-      // dalla 2 (il bottone della home porta lì).
-      firstPage: 2,
+      // Pagina 1 = inizio della sequenza (la notizia più recente): prima era la
+      // 2 perché la 1 ripeteva la home, ma ora la home non arriva più in fondo
+      // alle sue 100 notizie e la pagina 1 è l'unico posto dove trovarle tutte.
+      firstPage: 1,
+      perPage: 100,
+      static: true,
+      // L'id nXXXXXX cresce con la data (salvo pochi articoli ripubblicati):
+      // una pagina fatta quasi tutta di id più bassi del segnalibro è già
+      // oltre, e la ricerca si ferma invece di sfogliare fino a maxPages.
+      idOrdered: true,
       maxPages: 40,
       // Per CONTARE si usa invece l'endpoint ajax del lazy-load: stesso markup,
       // frammenti leggeri, e soprattutto scaricabile (le pagine navigabili no).
@@ -130,9 +169,8 @@ const NEWS_SITES = [
       // sito pubblica mentre si conta la sequenza scivola e le ultime notizie
       // si perdono per strada (è lo stesso difetto che genera i doppioni, vedi
       // v0.3.7). Una pagina sola basta e avanza: countMaxPages: 1.
-      // Se il segnalibro non è in quelle ~100 è oltre il muro del lazy-load
-      // (exact=false, badge "100+") e la ricerca sa già che deve andare
-      // nell'archivio invece di scrollare a vuoto.
+      // Se il segnalibro non è in quelle ~100 (exact=false, badge "100+") la
+      // ricerca sa già che è da pagina 2 in poi.
       countTemplate: "https://www.hdblog.it/new_files/ajax/pages.php?page={n}&b=10",
       countMaxPages: 1,
     },

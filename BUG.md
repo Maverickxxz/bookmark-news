@@ -8,6 +8,62 @@ Le spiegazioni lunghe della logica stanno in `CLAUDE.md`; qui c'è solo la stori
 
 ---
 
+## #16 — Su hdblog «Vai all'ultima letta» passava oltre il segnalibro dopo il cambio del caricamento a fine pagina
+**Versione:** 0.4.2 · **Data:** 19/09/2026 · **Sito:** hdblog · **Segnalato da:** utente
+
+- **Sintomo:** «Il sito hdblog ha cambiato i suoi caricamenti»: a volte il segnalibro non
+  compariva nella home anche con un numero esatto di non lette, a volte la ricerca «passa
+  attraverso il segnalibro e continua a scrollare le pagine». Su hwupgrade tutto regolare.
+- **Causa:** il sito ha cambiato due cose, misurate in Chrome headless sulla pagina vera
+  (`scratchpad/test-live-seek.ps1`).
+  1. **Il lazy-load della home raddoppia i blocchi.** Il JS del sito richiede e appende ogni
+     blocco **due volte** (`pages.php?page=3` ×2, `page=4` ×2, … — gara fra il suo precaricamento e
+     il clic sul pulsante "altre notizie", quindi **intermittente**: in un giro sì, nel successivo
+     magari no). Il contatore interno (`MAX_NUM_PAGES = 10`) si esaurisce allora dopo `page=6`:
+     scrollando la home si arriva a **~60 notizie distinte invece di ~100**. Il conteggio invece
+     usa l'endpoint ajax (`page=1&b=10`), che risponde ancora con 100: un segnalibro fra la 60ª e
+     la 100ª risultava "esatto, nella home", ma nella home non compariva mai.
+  2. **L'archivio `/page/N/` è diventato statico.** Prima erano pagine lazy come la home; ora sono
+     **100 notizie già tutte nel DOM**, paginazione numerata, e **`/page/1/` è esattamente la
+     sequenza completa della home** (`/page/2/` = dalla 101ª in poi). La ricerca invece partiva da
+     `/page/2/` (`firstPage: 2`, scelto quando la pagina 1 "ripeteva la home"): per un segnalibro
+     fra la 60ª e la 100ª cominciava **già oltre**, e si fermava subito col messaggio "ho
+     sfogliato oltre la posizione". E ogni pagina d'archivio veniva **scrollata fino in fondo**
+     (con 7 secondi di attesa per accorgersi che non cresceva) prima di passare alla successiva:
+     il "continua a scrollare le pagine".
+  3. In fondo a ogni `/page/N/` c'è una barra laterale (`#listnewssdx`) con le **5 notizie più
+     recenti**, stessa classe `article.newlist_normal` del feed: veniva letta come la coda della
+     pagina (pagina 3 che "finisce" con le notizie di oggi).
+- **Correzione:**
+  - `sites.js` (hdblog): `noScrollSeek: true` — se l'ultima letta non è già in pagina, niente più
+    scroll della home (inaffidabile): si va **dritti all'archivio**. Archivio con `firstPage: 1`,
+    `perPage: 100`, `static: true`, `idOrdered: true`; `articleExclude: "#listnewssdx"`.
+  - `content.js`: `archiveStartPage(pos)` salta **direttamente alla pagina che contiene la
+    posizione nota** del segnalibro (`markerPositionLowerBound()`: conteggio esatto o limite
+    inferiore — le posizioni col tempo crescono soltanto, quindi non si salta mai oltre): 0-99 →
+    pagina 1, "100+" → pagina 2. `startArchiveSeek` conta le pagine saltate come già esaminate,
+    così il limite su `seek.target` resta in posizioni assolute.
+  - Le pagine d'archivio statiche (`archiveIsStatic()`) non si scrollano più: se il segnalibro non
+    c'è si passa subito alla successiva.
+  - `pageOlderThanMarker()`: seconda prova di "sei già oltre", indipendente dal conteggio — se il
+    90% degli id di una pagina è più basso di quello del segnalibro (su hdblog `nXXXXXX` cresce con
+    la data, salvo pochi articoli ripubblicati), la ricerca si ferma e lo dice invece di sfogliare
+    fino a pagina 40.
+  - `collectArticles` rispetta `site.articleExclude` (barra laterale fuori dal feed).
+  - `waitFeedSettled()`: prima di lasciare la home si aspetta un attimo (1,5s senza notizie nuove,
+    max 6s) che il feed si assesti — dopo "Ricarica pulita" il sito riapre tutti i blocchi con una
+    richiesta sola, e la ricerca non deve partire per l'archivio prima che arrivi.
+- **Verifica:** `scratchpad/test-live-seek.ps1` — il VERO `content.js` in Chrome headless sulla home
+  vera (DevTools Protocol, `chrome.storage` simulato), 7 scenari tutti ok: segnalibro già in pagina
+  (centrato nella home), 36ª e 71ª (→ `/page/1/`, trovato e centrato), ~150ª (→ dritto a
+  `/page/2/`), ~240ª (pagina 2 → 3), notizia hdmotori in pagina 2, segnalibro non più elencato
+  (fermata a pagina 2 col messaggio). Prima della correzione lo scenario "60ª" scrollava la home,
+  finiva a `/page/2/` e si fermava senza trovarlo. Controllati anche lo scroll manuale della home
+  (evidenziazione sulla prima copia, doppioni nascosti) e "Ricarica pulita" (segnalibro alla 75ª
+  trovato nella home). hwupgrade: nessuno dei campi nuovi è impostato, comportamento invariato.
+
+---
+
 ## #15 — Su hdblog «Vai all'ultima letta» sfogliava 40 pagine d'archivio per una notizia che stava nella home
 **Versione:** 0.4.1 · **Data:** 26/08/2026 · **Sito:** hdblog · **Segnalato da:** utente
 

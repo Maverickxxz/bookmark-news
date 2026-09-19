@@ -195,6 +195,10 @@
     let els = Array.prototype.slice.call(
       root.querySelectorAll(site.articleSelector)
     );
+    // Notizie con la stessa classe del feed ma fuori dal feed (barre laterali
+    // "ultime notizie"): non sono parte della sequenza.
+    if (site.articleExclude)
+      els = els.filter((el) => !el.closest(site.articleExclude));
     if (site.newestLast) els.reverse();
 
     const out = [];
@@ -1002,6 +1006,24 @@
     return getFeedArticles();
   }
 
+  // Aspetta che il feed smetta di crescere da solo (senza scrollare): 1,5s
+  // senza notizie nuove, al massimo 6s, o finché compare la notizia cercata.
+  async function waitFeedSettled(targetKey) {
+    const t0 = Date.now();
+    let len = getFeedArticles().length;
+    let last = t0;
+    while (Date.now() - t0 < 6000 && Date.now() - last < 1500) {
+      if (seekCancelled) return;
+      await sleep(250);
+      const f = getFeedArticles();
+      if (targetKey && f.some((a) => a.key === targetKey)) return;
+      if (f.length > len) {
+        len = f.length;
+        last = Date.now();
+      }
+    }
+  }
+
   // ---- archivio paginato ("tutte le notizie") ----
   // Su alcuni siti (hwupgrade) il feed della home è FISSO: finite le ~40 notizie
   // lo scroll non carica altro, e le più vecchie stanno in un archivio a pagine
@@ -1026,6 +1048,26 @@
   // porta il bottone "altre notizie" del sito).
   function archiveFirstPage() {
     return (site.archive && site.archive.firstPage) || 1;
+  }
+
+  // Pagina dell'archivio che contiene la posizione `pos` (0 = la più recente),
+  // quando il sito dichiara quante notizie ha ogni pagina (archive.perPage) e
+  // la prima pagina comincia dalla più recente. hdblog: 100 a pagina, quindi
+  // posizione 0-99 -> /page/1/, 100-199 -> /page/2/, ... Senza perPage, o
+  // senza posizione nota, si parte dall'inizio.
+  // La posizione può solo CRESCERE col tempo (le notizie nuove si impilano
+  // sopra), quindi partire dalla pagina calcolata non salta mai il segnalibro:
+  // al massimo è scivolato alla pagina dopo, dove la ricerca prosegue da sola.
+  function archiveStartPage(pos) {
+    const first = archiveFirstPage();
+    const per = site.archive && site.archive.perPage;
+    if (!per || typeof pos !== "number" || !(pos >= 0)) return first;
+    return Math.min(archiveMaxPages(), first + Math.floor(pos / per));
+  }
+
+  // Pagine archivio già complete al caricamento: niente scroll per cercare.
+  function archiveIsStatic() {
+    return !!(site.feedStatic || (site.archive && site.archive.static));
   }
 
   function archiveUrlFor(page) {
@@ -1075,11 +1117,43 @@
   async function startArchiveSeek(page, target) {
     const p = page || archiveFirstPage();
     if (p > archiveMaxPages()) return false;
-    const flag = { page: p, ts: Date.now(), scanned: 0 };
+    // Se si salta direttamente a una pagina più avanti (archiveStartPage), le
+    // notizie delle pagine saltate contano come già esaminate: il limite su
+    // `target` ragiona in posizioni assolute nella sequenza del sito.
+    const per = site.archive && site.archive.perPage;
+    const skipped = per ? Math.max(0, p - archiveFirstPage()) * per : 0;
+    const flag = { page: p, ts: Date.now(), scanned: skipped };
     if (typeof target === "number") flag.target = target;
     await setStore({ [K.seek]: flag });
     location.assign(archiveUrlFor(p));
     return true;
+  }
+
+  // Seconda prova che la ricerca è andata OLTRE il segnalibro, indipendente dal
+  // conteggio: sui siti dove l'id numerico cresce con la data di pubblicazione
+  // (archive.idOrdered — hdblog: nXXXXXX) una pagina fatta quasi tutta di id
+  // più BASSI di quello del segnalibro è già più vecchia dell'ultima letta, e
+  // le pagine successive lo sono ancora di più. Quasi tutta e non tutta: ogni
+  // pagina ha qualche articolo vecchio ripubblicato (id basso in posizione
+  // recente), e il 90% lo assorbe. Il caso inverso — segnalibro che è lui
+  // stesso un articolo ripubblicato, con id basso — dà solo "continua", mai
+  // uno stop sbagliato. Senza questa prova, un segnalibro che il sito non
+  // elenca più faceva sfogliare l'archivio fino al tetto di 40 pagine.
+  function pageOlderThanMarker(feed, markerKey) {
+    if (!site.archive || !site.archive.idOrdered) return false;
+    const re = new RegExp(
+      "^" + String(site.idPrefix || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(\\d+)$"
+    );
+    const num = (k) => {
+      const m = String(k || "").match(re);
+      return m ? parseInt(m[1], 10) : NaN;
+    };
+    const mk = num(markerKey);
+    if (!(mk > 0)) return false;
+    const ids = feed.map((a) => num(a.key)).filter((n) => n > 0);
+    if (ids.length < 10) return false;
+    const older = ids.filter((n) => n < mk).length;
+    return older / ids.length >= 0.9;
   }
 
   // Pagina archivio: SOLO ricerca/evidenziazione. Il caricamento non avanza mai il
@@ -1136,15 +1210,18 @@
     let feed = await waitForFeed();
     let idx = feed.findIndex((a) => a.key === marker);
 
-    // Le pagine dell'archivio di hdblog sono fatte con lo stesso stampo della
-    // home: mostrano le prime ~20 notizie e caricano le altre mentre scorri.
-    // Guardare solo quelle già renderizzate vuol dire saltare l'80% della
-    // pagina — la ricerca sfogliava 40 pagine vedendone una fetta ciascuna e
-    // non trovava mai niente (bug #15). Si scorre solo durante una ricerca:
-    // una visita normale all'archivio non deve muoversi da sola. Sui feed
-    // statici (hwupgrade) growFeedByScrolling esce subito.
+    // Pagine d'archivio LAZY (fatte con lo stesso stampo della home: le prime
+    // ~20 notizie e le altre mentre scorri): guardare solo quelle già
+    // renderizzate vuol dire saltare l'80% della pagina (bug #15), quindi
+    // durante una ricerca si scrollano. Solo durante una ricerca: una visita
+    // normale all'archivio non deve muoversi da sola.
+    // Le pagine STATICHE (hwupgrade, e hdblog da settembre 2026: 100 notizie
+    // già nel DOM) invece NON si scrollano: non caricherebbero niente, e
+    // vedere la pagina scorrere fino in fondo — con l'attesa per accorgersi che
+    // è finita — prima di passare alla successiva è proprio il "continua a
+    // scrollare le pagine" segnalato dall'utente (bug #16).
     let cancelled = false;
-    if (idx < 0 && seeking) {
+    if (idx < 0 && seeking && !archiveIsStatic()) {
       seekCancelled = false;
       showSeekToast("Cerco l'ultima letta… pagina " + page);
       feed = await growFeedByScrolling(marker, (f) => {
@@ -1199,7 +1276,8 @@
     // contenerlo. Il margine copre le sovrapposizioni fra pagine contigue.
     const scanned = (seek.scanned | 0) + feed.length;
     const overshot =
-      typeof seek.target === "number" && scanned > seek.target + 30;
+      (typeof seek.target === "number" && scanned > seek.target + 30) ||
+      pageOlderThanMarker(feed, marker);
 
     if (!feed.length || overshot || page >= archiveMaxPages()) {
       // Fine ricerca senza esito (pagina vuota, tetto raggiunto, o segnalibro
@@ -1210,8 +1288,8 @@
       showSeekToast(
         overshot
           ? "Ho sfogliato l'archivio oltre la posizione dell'ultima letta senza " +
-              "trovarla: o è ancora nella home, o il sito non la elenca qui. " +
-              "Ricerca fermata a pagina " +
+              "trovarla: il sito non la elenca più (forse è stata rimossa o " +
+              "spostata). Ricerca fermata a pagina " +
               page +
               ", il segnalibro resta dov'è."
           : "Non sono riuscito ad arrivare all'ultima letta: la ricerca si è " +
@@ -1358,6 +1436,19 @@
     return null;
   }
 
+  // Miglior stima della posizione del segnalibro nella sequenza del sito (0 =
+  // la più recente), anche solo come LIMITE INFERIORE: serve a scegliere da
+  // quale pagina d'archivio partire (archiveStartPage). È il numero di non
+  // lette dell'ultimo stato della home — esatto se contato, altrimenti un
+  // minimo garantito. Un limite inferiore non fa mai saltare il segnalibro:
+  // le posizioni col tempo possono solo crescere.
+  function markerPositionLowerBound() {
+    if (refined) return refined.count;
+    if (lastStatus && lastStatus.onHome && lastStatus.unread > 0)
+      return lastStatus.unread;
+    return null;
+  }
+
   async function seekMarker() {
     let el = document.querySelector(".hdb-marker");
     // Se il segnalibro non è ancora nel DOM (notizia sotto la piega non ancora
@@ -1366,19 +1457,23 @@
     // fermandosi appena la notizia compare. Il segnalibro può stare MOLTO in
     // basso: la home di hdblog arriva a ~100 notizie in 8 blocchi, ognuno una
     // richiesta di rete, quindi la pazienza è tutto (vedi bug #15).
-    // Tre casi in cui scrollare è inutile e si va dritti all'archivio:
+    // Quattro casi in cui scrollare è inutile e si va dritti all'archivio:
     //  - feed FISSO (site.feedStatic: è già tutto nel DOM);
     //  - siamo GIÀ in una pagina d'archivio (la ricerca prosegue alla pagina
     //    dopo; questa l'ha già sfogliata initArchive);
     //  - il conteggio ha già sfogliato TUTTO quel che il sito serve alla home
     //    senza trovare il segnalibro (refined.exact === false): è oltre il muro
-    //    del lazy-load, scrollare non lo farà comparire.
+    //    del lazy-load, scrollare non lo farà comparire;
+    //  - il sito dichiara il suo lazy-load inaffidabile (site.noScrollSeek:
+    //    hdblog raddoppia ogni blocco e si ferma a ~60 notizie, bug #16) e ha
+    //    un archivio che copre anche la home: lì si arriva senza scrollare.
     const beyondFeed = !!(refined && !refined.exact);
     const onArchivePage = archivePageNum() !== null;
     if (
       !el &&
       state.markerKey &&
       !site.feedStatic &&
+      !(site.noScrollSeek && site.archive) &&
       !beyondFeed &&
       !onArchivePage
     ) {
@@ -1409,6 +1504,22 @@
       // Trovata (o comunque finito lo scroll): il flag di ricerca non deve
       // restare appeso, o la prossima visita all'archivio verrebbe dirottata.
       if (site.archive && el) await removeStore(K.seek);
+    } else if (
+      !el &&
+      state.markerKey &&
+      site.noScrollSeek &&
+      !beyondFeed &&
+      !onArchivePage
+    ) {
+      // Niente scroll, ma il feed può crescere da solo: dopo "Ricarica pulita"
+      // hdblog riapre tutti i blocchi già caricati con UNA richiesta (ancora
+      // #?t=…&b=N), e la ricerca riparte subito dopo il caricamento, magari
+      // prima che la risposta arrivi. Un attimo di pazienza prima di decidere
+      // che il segnalibro non è in pagina e portare l'utente altrove.
+      showSeekToast("Cerco l'ultima letta…");
+      await waitFeedSettled(state.markerKey);
+      reapplyIfChanged();
+      el = document.querySelector(".hdb-marker");
     }
     if (el) {
       dismissSeekToast();
@@ -1425,10 +1536,12 @@
     // bottone "Clicca qui per Altre Notizie").
     if (site.archive && state.markerKey) {
       // Se siamo già in una pagina dell'archivio, si riprende da quella DOPO:
-      // le precedenti le abbiamo appena scartate.
+      // le precedenti le abbiamo appena scartate. Dalla home si parte dalla
+      // pagina che contiene la posizione nota del segnalibro (hdblog: 100
+      // notizie a pagina, quindi "150 non lette" -> dritti a pagina 2).
       const cur = archivePageNum();
       return await startArchiveSeek(
-        cur === null ? archiveFirstPage() : cur + 1,
+        cur === null ? archiveStartPage(markerPositionLowerBound()) : cur + 1,
         // Posizione esatta del segnalibro, quando la conosciamo: dice alla
         // passeggiata nell'archivio quando è inutile andare oltre. Sulla home
         // viene dal conteggio; da una pagina d'archivio (dove il conteggio non

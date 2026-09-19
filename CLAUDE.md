@@ -261,6 +261,33 @@ scrollare la home o andare dritti all'archivio. Verificato con `scratchpad/test-
 (38 controlli + check live: una richiesta = ~100 notizie senza doppioni, home = prefisso della
 sequenza, muro a `page=11`, `/page/2/` che risponde 429 al fetch).
 
+**hdblog ha cambiato il caricamento: archivio statico, niente più scroll (v0.4.2)** — segnalato
+dall'utente: «delle volte il sito carica male il segnalibro, oppure passa attraverso il segnalibro
+e continua a scrollare le pagine» (bug #16). Due cambi del sito, misurati in Chrome headless:
+(1) il lazy-load della home **appende ogni blocco due volte** (gara fra il precaricamento del sito
+e il clic sul suo pulsante: **intermittente**), il contatore `MAX_NUM_PAGES` si esaurisce dopo
+`page=6` e la home arriva a **~60 notizie distinte** invece di ~100 — mentre il conteggio
+(`pages.php?page=1&b=10`) ne vede ancora 100, quindi un segnalibro fra la 60ª e la 100ª è "esatto"
+ma introvabile scrollando; (2) **`/page/N/` è diventato statico**: 100 notizie già nel DOM,
+paginazione numerata, e **`/page/1/` = la sequenza completa della home** (`/page/2/` dalla 101ª).
+La ricerca partiva da `/page/2/`, cioè già oltre, e scrollava ogni pagina statica fino in fondo.
+Ora in `sites.js` hdblog ha `noScrollSeek: true` (se l'ultima letta non è già in pagina si va
+**dritti all'archivio**, senza scrollare la home) e l'archivio `firstPage: 1`, `perPage: 100`,
+`static: true` (niente scroll nelle pagine), `idOrdered: true`; più `articleExclude:
+"#listnewssdx"`, la barra laterale in fondo alle `/page/N/` con le 5 notizie più recenti e la
+stessa classe del feed. In `content.js`: `archiveStartPage(pos)` salta alla **pagina che contiene
+la posizione nota** (`markerPositionLowerBound()` = conteggio esatto o limite inferiore; le
+posizioni col tempo possono solo crescere, quindi non si salta mai oltre): 0-99 → pagina 1,
+"100+" → pagina 2; `pageOlderThanMarker()` ferma la ricerca quando il 90% degli id di una pagina è
+più basso di quello del segnalibro (su hdblog l'id cresce con la data, salvo pochi ripubblicati):
+prova di "sei già oltre" che non dipende dal conteggio; `waitFeedSettled()` concede al feed 1,5s
+(max 6s) per assestarsi prima di lasciare la home — dopo "Ricarica pulita" il sito riapre tutti i
+blocchi con una richiesta sola. Il lazy-load raddoppiato resta visibile solo come doppioni, che
+`hideDuplicates` già nasconde. Verificato con `scratchpad/test-live-seek.ps1`: il VERO
+`content.js` in Chrome headless sulla home vera (DevTools Protocol da PowerShell, `chrome.storage`
+simulato in localStorage; strumenti in `scratchpad/live/`), 7 scenari. **Node non è installato**
+su questa macchina: i vecchi `test-*.js` non girano finché non lo si installa.
+
 ## File
 
 - `manifest.json` — MV3; `matches` elenca gli host; carica `sites.js` poi `content.js`.
@@ -343,11 +370,16 @@ dati già raccolti (aggregato `keywords` + `opened[].kw`). Verificato con `scrat
   (`archive.countTemplate`: solo fetch, mai navigazione), vedi v0.3.4 — con
   `?page=1&b=10`, cioè **tutti i blocchi in una richiesta sola** e in un'istantanea coerente
   (v0.4.1), `countMaxPages: 1`.
-  Il lazy-load **si ferma a `pages.php?page=10`** (~100 notizie in tutto): più indietro di così
-  le notizie stanno nell'archivio navigabile `/page/N/` — quello del bottone "Clicca qui per
-  Altre Notizie" — dove la ricerca dell'ultima letta prosegue pagina per pagina a partire dalla
-  2 (`archive.firstPage`), come su hwupgrade (v0.3.9). Quelle pagine si possono solo NAVIGARE:
-  al fetch rispondono 429.
+  Il lazy-load **si ferma a `pages.php?page=10`** (~100 notizie in tutto) e da settembre 2026
+  **raddoppia i blocchi** a intermittenza, fermandosi a ~60 notizie distinte: per questo
+  `noScrollSeek: true`, la ricerca non scrolla la home (v0.4.2). L'archivio navigabile `/page/N/`
+  — quello del bottone "Clicca qui per Altre Notizie" — è **statico, 100 notizie a pagina**, e
+  `/page/1/` = la sequenza completa della home: la ricerca salta alla pagina della posizione nota
+  (`firstPage: 1`, `perPage: 100`, `static: true`, `idOrdered: true`; v0.4.2). Quelle pagine si
+  possono solo NAVIGARE: al fetch senza cookie rispondono 429 (col cookie del sito, in Chrome,
+  rispondono 200 — non usato: il conteggio resta senza credenziali, vedi PRIVACY.md). In fondo a
+  ogni `/page/N/` una barra laterale `#listnewssdx` ripete le 5 notizie più recenti con la stessa
+  classe del feed → `articleExclude`.
   La home si **auto-ricarica** ogni 777s via meta refresh su `/?refresh_ce` →
   `autoRefreshParam: "refresh_ce"` impedisce che quei caricamenti facciano avanzare il
   segnalibro (v0.3.5); il parametro viene poi tolto dall'URL con `replaceState` così la
@@ -390,9 +422,11 @@ dati già raccolti (aggregato `keywords` + `opened[].kw`). Verificato con `scrat
   popup) scrolla giù a step (`growFeedByScrolling`) per forzare il caricamento finché il marker
   compare, poi lo centra; se il feed finisce senza trovarlo la ricerca prosegue **nell'archivio**
   del sito, pagina per pagina (`site.archive`, v0.3.2 per hwupgrade e v0.3.9 per hdblog) —
-  scrollando anche quelle, che sono fatte con lo stesso stampo della home (v0.4.1). Lo scroll si
+  scrollando anche quelle se sono lazy (v0.4.1; non se `archive.static`, v0.4.2). Lo scroll si
   salta quando non può servire (feed statico, pagina d'archivio, marker già noto come "oltre il
-  muro"). Verificato con `scratchpad/test-lazy-highlight.js` e `scratchpad/test-deep-seek.js`.
+  muro", lazy-load dichiarato inaffidabile con `noScrollSeek` — hdblog dalla v0.4.2). Verificato
+  con `scratchpad/test-lazy-highlight.js`, `scratchpad/test-deep-seek.js` e
+  `scratchpad/test-live-seek.ps1`.
 - La condizione per smettere di scrollare è **la crescita del feed**, non il movimento dello
   scroll: mentre arriva un blocco lazy la pagina è già in fondo e non si muove per interi secondi,
   e chi guarda `scrollY` scambia quell'attesa per "fine della pagina" (bug #15: la ricerca mollava
@@ -412,7 +446,17 @@ dati già raccolti (aggregato `keywords` + `opened[].kw`). Verificato con `scrat
 - L'archivio va **solo indietro nel tempo**: sfogliarlo oltre la posizione nota del segnalibro
   (`seek.target`, dal conteggio esatto) è dimostrabilmente inutile — se non è comparso entro
   `target` notizie, o l'archivio comincia dopo di lui o non lo elenca affatto. Fermarsi e dirlo,
-  non arrivare al tetto delle pagine (bug #15).
+  non arrivare al tetto delle pagine (bug #15). Dove l'id cresce con la data (`idOrdered`) vale
+  anche la prova senza conteggio: una pagina con il 90% di id più bassi del segnalibro è già oltre.
+- **I siti cambiano il caricamento senza avvisare** (bug #16: hdblog in settembre 2026 ha reso
+  statico l'archivio e rotto il proprio lazy-load). Quando l'utente segnala che la ricerca "non
+  arriva", prima di toccare il codice **rimisurare il sito vero**: quante notizie dà la home
+  scrollando (distinte, non nodi), cosa contiene `/page/1/`, se le pagine d'archivio sono lazy o
+  statiche. Lo strumento è `scratchpad/test-live-seek.ps1` (Chrome headless via CDP, gira il vero
+  `content.js`): le `/page/N/` rispondono 429 a `Invoke-WebRequest`, ma non al Chrome headless.
+- Un'ipotesi sulla posizione del segnalibro va presa come **limite inferiore**, mai come stima
+  "circa": le notizie nuove si impilano sopra, quindi la posizione può solo crescere. Partire
+  dalla pagina del limite inferiore non salta mai il segnalibro (`archiveStartPage`).
 - Sulle **pagine archivio** il feed è storico, non attuale: "la più recente" è `pending_<id>`
   (scritto sulla home), MAI `feed[0]` della pagina — usarlo manderebbe il segnalibro
   all'indietro. Stessa ragione per cui il conteggio non si ricalcola lì ma si legge da
