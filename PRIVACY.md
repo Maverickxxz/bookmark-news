@@ -34,6 +34,12 @@ Nella memoria locale dell'estensione (`chrome.storage.local`) vengono salvati:
    conserva al massimo gli ultimi 1000 articoli. Da questa lista l'estensione calcola
    i due riepiloghi (categorie e parole chiave più frequenti) che vedi in
    Impostazioni.
+5. **Un registro diagnostico** (ultime 1500 righe): cosa ha fatto l'estensione sulle
+   pagine dei siti supportati — identificativi delle notizie, conteggi, pagine
+   dell'archivio visitate durante la ricerca, errori. Serve solo a capire un
+   malfunzionamento: lo vedi, copi, scarichi o svuoti in Impostazioni → Diagnostica e
+   non lascia il dispositivo, a meno che non sia tu ad allegarlo a una segnalazione.
+   Il file esportato riporta anche versione dell'estensione e browser.
 
 Non vengono salvati la cronologia di navigazione, gli indirizzi delle pagine
 visitate al di fuori dei siti supportati, dati personali, indirizzi email,

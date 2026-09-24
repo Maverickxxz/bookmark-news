@@ -288,6 +288,15 @@ blocchi con una richiesta sola. Il lazy-load raddoppiato resta visibile solo com
 simulato in localStorage; strumenti in `scratchpad/live/`), 7 scenari. **Node non è installato**
 su questa macchina: i vecchi `test-*.js` non girano finché non lo si installa.
 
+**Il conteggio riprova (v0.4.3)** — segnalato dall'utente: al primo caricamento di hdblog "20+"
+e ultima letta introvabile, al secondo refresh tutto giusto (bug #17). Il fetch del conteggio
+partiva una volta sola e un fallimento (rete non ancora pronta all'avvio del browser, ipotesi:
+non riprodotto in headless) durava tutta la visita. Ora `startRefine` riprova dopo 2/5/12s
+(`COUNT_RETRY_MS`, `countOnce` = cache `count_<id>` + fetch); dal primo fallimento il toast non
+aspetta più. Il fetch è `cache: "no-store"` e logga il motivo del fallimento in console.
+`seekMarker` aspetta il conteggio in corso (`refinePromise`) o, se è fallito, lo rifà
+(`state.newestKey`) prima di scegliere la strada. Verificato con `scratchpad/test-count-retry.ps1`.
+
 ## File
 
 - `manifest.json` — MV3; `matches` elenca gli host; carica `sites.js` poi `content.js`.
@@ -304,7 +313,17 @@ su questa macchina: i vecchi `test-*.js` non girano finché non lo si installa.
   TESTO semplice — niente `mailto:` né pulsante, scelta dell'utente — e link al repo GitHub,
   stessi vincoli del link di sostegno) + vista degli interessi (categorie/keyword aggregate + elenco articoli aperti) + eliminazione singola (`deleteEntry`, decrementa gli aggregati) o totale + **export** (`exportJSON` = articoli+keyword+categorie; `exportCSV` = articoli, con BOM; `exportIgnore` = parole da ignorare in .txt, una per riga, ordinate/deduplicate — pensato per raccogliere i file degli utenti e unirli in futuro alle liste predefinite) + gestione "Parole da ignorare". Include `sites.js` per i nomi dei siti.
 
-Nota debug (v0.0.8): `content.js` logga in console `[Segnalibro] content script attivo: …`, `[Segnalibro] articolo registrato: …` e `[Segnalibro] pagina NON riconosciuta come articolo: …`. Servono a diagnosticare i casi in cui il tracciamento non parte (es. content script non iniettato per accesso-al-sito ristretto). Rimuovibili quando non servono più.
+**Registro diagnostico (v0.4.3, chiesto dall'utente):** `dbg(...)` in `content.js` scrive in
+console (prefisso `[Segnalibro]`) E manda le righe al service worker (`debugLog`: coda ogni 400ms,
+`dbgFlush()` su `pagehide` e prima di ogni `location.assign`/`replace`), che le accoda in modo
+serializzato (`logChain`) nella chiave `debugLog` (ultime 1500). Persistente perché la ricerca
+cambia pagina da sola e la console si svuota a ogni navigazione. Si legge/copia/scarica/svuota in
+Impostazioni → Diagnostica (`loadDebugLog`; l'export ha in testa versione e user agent). Copre:
+avvio e impostazioni, feed della home, decisione del registro (prima/dopo), ogni tentativo del
+conteggio (HTTP, durata, notizie, esito, retry), stato mostrato (solo quando cambia), strada della
+ricerca, fine dello scroll col motivo, ogni pagina d'archivio (flag, contenuto, trovato/fermata e
+perché), "raggiunto", comandi del popup, eccezioni di `init`/ricerca/conteggio. Quando l'utente
+segnala un comportamento strano, chiedere PRIMA il registro. Dichiarato in `PRIVACY.md` (voce 5).
 - `rileva-selettori.js` — **strumento** (non parte dell'estensione): da incollare nella Console per ricavare i selettori di siti che bloccano il fetch remoto.
 - `build.ps1` — **pacchetto per il Web Store**: elenco ESPLICITO dei file che spediscono (whitelist,
   non esclusioni: scratchpad, CLAUDE.md, BUG.md, STORE.md, README e strumenti restano fuori),

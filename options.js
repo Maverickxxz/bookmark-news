@@ -375,6 +375,51 @@ async function exportCSV() {
   download("articoli-visitati-" + stampDate() + ".csv", "﻿" + rows.join("\r\n"), "text/csv;charset=utf-8");
 }
 
+// -------- diagnostica --------
+// Registro scritto dal service worker (chiave `debugLog`, vedi dbg() in
+// content.js). Il più recente in fondo, come in una console.
+
+async function getDebugLog() {
+  const o = await getStore("debugLog");
+  return Array.isArray(o.debugLog) ? o.debugLog : [];
+}
+
+async function loadDebugLog() {
+  const lines = await getDebugLog();
+  const view = $("log-view");
+  const atBottom = view.scrollTop + view.clientHeight >= view.scrollHeight - 20;
+  view.textContent = lines.join("\n");
+  $("log-count").textContent = lines.length ? "Righe nel registro: " + lines.length : "";
+  if (atBottom) view.scrollTop = view.scrollHeight;
+}
+
+function logHeader() {
+  const v = chrome.runtime.getManifest().version;
+  return "Segnalibro notizie " + v + " · " + navigator.userAgent + " · esportato " + new Date().toString();
+}
+
+async function copyDebugLog() {
+  const text = logHeader() + "\n\n" + (await getDebugLog()).join("\n");
+  const btn = $("log-copy");
+  try {
+    await navigator.clipboard.writeText(text);
+    btn.textContent = "Copiato!";
+  } catch (e) {
+    btn.textContent = "Copia non riuscita";
+  }
+  setTimeout(() => (btn.textContent = "Copia"), 1800);
+}
+
+async function downloadDebugLog() {
+  const text = logHeader() + "\r\n\r\n" + (await getDebugLog()).join("\r\n");
+  download("segnalibro-log-" + stampDate() + ".txt", text);
+}
+
+async function clearDebugLog() {
+  await setStore({ debugLog: [] });
+  loadDebugLog();
+}
+
 function refreshData() {
   loadInterests();
   loadOpenedList();
@@ -434,7 +479,13 @@ $("ignore-input").addEventListener("keydown", (ev) => {
 // Aggiorna la vista non appena arrivano nuovi articoli (anche da altre schede).
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "local" && changes.interests) refreshData();
+  if (area === "local" && changes.debugLog) loadDebugLog();
 });
+
+$("log-copy").addEventListener("click", copyDebugLog);
+$("log-download").addEventListener("click", downloadDebugLog);
+$("log-clear").addEventListener("click", clearDebugLog);
 
 loadSettings();
 refreshData();
+loadDebugLog();

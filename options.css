@@ -447,3 +447,24 @@ body {
 .btn-danger:hover {
   background: #fdf2f1;
 }
+
+/* registro diagnostico */
+.log-actions {
+  margin: 0;
+}
+.log-view {
+  max-height: 360px;
+  overflow: auto;
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  background: #16161a;
+  color: #e6e6ea;
+  border-radius: 8px;
+  font: 11.5px/1.45 Consolas, "Courier New", monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.log-view:empty::before {
+  content: "Registro vuoto: apri la home di un sito supportato.";
+  color: #9a9aa2;
+}

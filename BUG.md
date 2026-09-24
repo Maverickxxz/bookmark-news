@@ -8,6 +8,33 @@ Le spiegazioni lunghe della logica stanno in `CLAUDE.md`; qui c'è solo la stori
 
 ---
 
+## #17 — Su hdblog, al primo caricamento, "20+" e ultima letta introvabile; al secondo refresh tutto ok
+**Versione:** 0.4.3 · **Data:** 24/09/2026 · **Sito:** hdblog · **Segnalato da:** utente
+
+- **Sintomo:** al primo avvio di hdblog il badge diceva "20+" invece del numero esatto e
+  "Vai all'ultima letta" non trovava la notizia; ricaricando una seconda volta il conteggio era
+  giusto (es. 51) e la ricerca arrivava alla notizia.
+- **Causa:** "20+" = il conteggio (`pages.php?page=1&b=10`) **era fallito** e restava il limite
+  inferiore delle notizie in pagina. Il fetch partiva **una volta sola**: se falliva, restava
+  fallito per tutta la visita e anche la ricerca partiva alla cieca. **Non riprodotto** in Chrome
+  headless (profilo pulito: conteggio e ricerca ok, endpoint 200 anche da PowerShell, nessun
+  service worker del sito): l'ipotesi più probabile è la rete/cache non ancora pronta al primo
+  caricamento dopo l'avvio del browser. Prima di questa versione il motivo del fallimento veniva
+  inghiottito in silenzio, quindi non c'era modo di vederlo.
+- **Correzione (`content.js`):** il conteggio **riprova** dopo 2, 5 e 12 secondi (`startRefine` /
+  `countOnce`); dopo il primo fallimento il toast non aspetta più e mostra "N+", poi badge e toast
+  si correggono da soli. Il fetch va con `cache: "no-store"` e il motivo di ogni fallimento
+  finisce in console (`[Segnalibro] conteggio: HTTP …` / `errore di rete …` / `nessuna notizia`).
+  "Vai all'ultima letta" **aspetta** il conteggio in corso o, se era fallito, lo **rifà** prima di
+  decidere la strada (toast "conto le notizie nuove").
+- **Verifica:** `scratchpad/test-count-retry.ps1` (Chrome headless, vero `content.js`): conteggio
+  bloccato al load e sbloccato dopo 3s → badge al numero esatto; bloccato per tutti i retry →
+  "Vai all'ultima letta" rifà il conteggio e arriva alla notizia su `/page/1/`.
+  `scratchpad/test-live-seek.ps1`: 7/7 scenari ok. Se il sintomo si ripresenta, la console della
+  home al primo caricamento dice ora il motivo.
+
+---
+
 ## #16 — Su hdblog «Vai all'ultima letta» passava oltre il segnalibro dopo il cambio del caricamento a fine pagina
 **Versione:** 0.4.2 · **Data:** 19/09/2026 · **Sito:** hdblog · **Segnalato da:** utente
 

@@ -24,15 +24,74 @@
 
   const site = findSiteForUrl(location.href);
 
-  // Log diagnostico: conferma che il content script è iniettato e su quale sito.
-  try {
-    console.log(
-      "[Segnalibro] content script attivo:",
-      site ? site.id : "(sito non configurato)",
-      "·",
-      location.pathname
-    );
-  } catch (e) {}
+  // ---- registro diagnostico ----
+  // Ogni passo importante (registro del segnalibro, conteggio, ricerca,
+  // archivio) finisce in console E in un registro persistente (chiave
+  // `debugLog`, scritto dal service worker in modo serializzato, ultime 1500
+  // righe). Persistente perché la ricerca cambia pagina da sola e la console si
+  // svuota a ogni navigazione: senza, gli errori "al primo caricamento" non si
+  // vedono mai. Si legge, copia e scarica da Impostazioni → Diagnostica.
+  // Tutto in locale, come il resto (vedi PRIVACY.md).
+  const T0 = Date.now();
+  let dbgQueue = [];
+  let dbgTimer = null;
+
+  function dbgFmt(v) {
+    if (v === undefined) return "undefined";
+    if (v === null || typeof v !== "object") return String(v);
+    if (v instanceof Error) return v.name + ": " + v.message;
+    try {
+      return JSON.stringify(v);
+    } catch (e) {
+      return String(v);
+    }
+  }
+
+  function dbgFlush() {
+    if (dbgTimer) {
+      clearTimeout(dbgTimer);
+      dbgTimer = null;
+    }
+    if (!dbgQueue.length) return;
+    const lines = dbgQueue;
+    dbgQueue = [];
+    try {
+      chrome.runtime.sendMessage({ type: "debugLog", lines: lines });
+    } catch (e) {}
+  }
+
+  function dbg() {
+    const args = [].slice.call(arguments);
+    const msg = args.map(dbgFmt).join(" ");
+    const d = new Date();
+    const p = (n, w) => String(n).padStart(w || 2, "0");
+    const line =
+      p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds()) +
+      "." + p(d.getMilliseconds(), 3) +
+      " +" + ((Date.now() - T0) / 1000).toFixed(1) + "s" +
+      " [" + (site ? site.id : "-") + " " + location.pathname + location.search + "] " +
+      msg;
+    try {
+      console.log("[Segnalibro]", msg);
+    } catch (e) {}
+    dbgQueue.push(line);
+    if (!dbgTimer) dbgTimer = setTimeout(dbgFlush, 400);
+  }
+
+  // La pagina può andarsene in qualunque momento (ricerca nell'archivio,
+  // refresh del sito): quel che è in coda parte prima.
+  window.addEventListener("pagehide", dbgFlush);
+
+  dbg(
+    "content script attivo:",
+    site ? site.id : "(sito non configurato)",
+    "· url",
+    location.href,
+    "· visibile",
+    document.visibilityState,
+    "· online",
+    navigator.onLine
+  );
 
   let state = { markerKey: null };
   let lastStatus = { onHome: false, siteName: site ? site.name : null };
@@ -670,7 +729,7 @@
       ts: Date.now(),
     };
     try {
-      console.log("[Segnalibro] articolo registrato:", entry.s, entry.k, "·", entry.t.slice(0, 45));
+      dbg("articolo registrato:", entry.s, entry.k, "·", entry.t.slice(0, 45));
     } catch (e) {}
     // La scrittura avviene nel service worker, serializzata, così aprendo più
     // articoli in schede diverse non si sovrascrivono a vicenda.
@@ -730,6 +789,7 @@
           for (const en of entries) {
             if (en.isIntersecting) {
               reachedThisVisit = true;
+              dbg("segnalibro RAGGIUNTO (visto sullo schermo): al prossimo caricamento avanza");
               setStore({ [K.reached]: true });
               if (reachObserver) {
                 reachObserver.disconnect();
@@ -800,6 +860,8 @@
     el.classList.add("hdb-flash");
   }
 
+  let lastHighlightLog = "";
+
   function applyHighlight() {
     if (!state.markerKey) return lastStatus;
     const feed = getFeedArticles();
@@ -845,6 +907,18 @@
       dups: dups, // doppioni del sito nascosti in questa pagina (vedi hideDuplicates)
       frozen: !!(settings && settings.freezeMarker),
     };
+    // applyHighlight gira a ogni cambio del DOM: si registra solo quando lo
+    // stato mostrato cambia davvero.
+    const logSig = [unread, approx, found, feed.length, idx, dups].join("|");
+    if (logSig !== lastHighlightLog) {
+      lastHighlightLog = logSig;
+      dbg(
+        "stato: non lette", unread + (approx ? "+" : ""),
+        "· segnalibro in pagina", found, idx >= 0 ? "(posizione " + idx + ")" : "",
+        "· feed", feed.length, "· doppioni nascosti", dups,
+        "· fonte", idx >= 0 ? "feed" : refined ? "conteggio" : refining ? "feed (conteggio in corso)" : "feed (limite inferiore)"
+      );
+    }
     setStore({ ["status_" + site.id]: lastStatus });
     setBadge(unread, approx);
     if (!refining) renderToast(lastStatus);
@@ -952,8 +1026,8 @@
       if (dest.href.split("#")[0] === location.href.split("#")[0]) return;
       e.preventDefault();
       try {
-        console.log(
-          "[Segnalibro] navigazione automatica del sito bloccata durante la ricerca:",
+        dbg(
+          "navigazione automatica del sito bloccata durante la ricerca:",
           dest.href
         );
       } catch (err) {}
@@ -975,10 +1049,18 @@
     let lastAny = t0; // ultima volta che qualcosa si è mosso
     let lastFeed = t0; // ultima volta che sono arrivate notizie
     const releaseGuard = installAutoNavGuard();
+    let why = "tetto di " + GROW_MAX_MS / 1000 + "s";
+    dbg("scroll: avvio · feed", feed.length, "· cerco", targetKey);
     try {
       while (Date.now() - t0 < GROW_MAX_MS) {
-        if (seekCancelled) break; // × del toast: l'utente ha annullato
-        if (targetKey && feed.some((a) => a.key === targetKey)) break;
+        if (seekCancelled) {
+          why = "annullato dall'utente";
+          break; // × del toast: l'utente ha annullato
+        }
+        if (targetKey && feed.some((a) => a.key === targetKey)) {
+          why = "segnalibro comparso";
+          break;
+        }
         window.scrollBy(0, Math.max(600, Math.round(window.innerHeight * 0.9)));
         await sleep(250);
         feed = getFeedArticles();
@@ -997,13 +1079,24 @@
             onGrow(feed);
           } catch (e) {}
         }
-        if (now - lastAny > GROW_IDLE_MS) break;
-        if (now - lastFeed > GROW_FEED_IDLE_MS) break;
+        if (now - lastAny > GROW_IDLE_MS) {
+          why = "pagina immobile da " + GROW_IDLE_MS / 1000 + "s";
+          break;
+        }
+        if (now - lastFeed > GROW_FEED_IDLE_MS) {
+          why = "nessuna notizia nuova da " + GROW_FEED_IDLE_MS / 1000 + "s";
+          break;
+        }
       }
     } finally {
       releaseGuard();
     }
-    return getFeedArticles();
+    const end = getFeedArticles();
+    dbg(
+      "scroll: fine (" + why + ") ·", end.length, "notizie ·",
+      end.raw, "nodi ·", ((Date.now() - t0) / 1000).toFixed(1) + "s"
+    );
+    return end;
   }
 
   // Aspetta che il feed smetta di crescere da solo (senza scrollare): 1,5s
@@ -1125,6 +1218,8 @@
     const flag = { page: p, ts: Date.now(), scanned: skipped };
     if (typeof target === "number") flag.target = target;
     await setStore({ [K.seek]: flag });
+    dbg("archivio: vado a", archiveUrlFor(p), "· flag", flag);
+    dbgFlush();
     location.assign(archiveUrlFor(p));
     return true;
   }
@@ -1201,6 +1296,11 @@
       typeof seek.ts === "number" &&
       Date.now() - seek.ts < SEEK_TTL_MS
     );
+    dbg(
+      "archivio: pagina", page, "· segnalibro", marker, "· flag ricerca", seek || null,
+      "· ricerca attiva", seeking,
+      seekHere && !seeking ? "(SCADUTA: TTL " + SEEK_TTL_MS / 60000 + " min)" : ""
+    );
     if (!marker) {
       if (seek) await removeStore(K.seek);
       return;
@@ -1209,6 +1309,11 @@
 
     let feed = await waitForFeed();
     let idx = feed.findIndex((a) => a.key === marker);
+    dbg(
+      "archivio: pagina", page, "·", feed.length, "notizie ·",
+      feed.length ? "dalla " + feed[0].key + " alla " + feed[feed.length - 1].key : "(vuota)",
+      "· segnalibro in posizione", idx
+    );
 
     // Pagine d'archivio LAZY (fatte con lo stesso stampo della home: le prime
     // ~20 notizie e le altre mentre scorri): guardare solo quelle già
@@ -1235,6 +1340,7 @@
     lastStatus.total = feed.length;
 
     if (idx >= 0) {
+      dbg("archivio: segnalibro TROVATO a pagina", page, "posizione", idx);
       // Trovata: evidenzia (e chiudi l'eventuale ricerca in corso).
       if (seek) await removeStore(K.seek);
       markElement(feed[idx].el);
@@ -1249,7 +1355,10 @@
 
     // Annullata con la × mentre caricava la pagina: niente auto-navigazione e
     // niente messaggio (la × è già una risposta).
-    if (cancelled) return;
+    if (cancelled) {
+      dbg("archivio: ricerca annullata dall'utente (×)");
+      return;
+    }
 
     if (!seeking) {
       // Ricerca arrivata fin qui ma SCADUTA per strada (TTL): si dice e si
@@ -1279,7 +1388,16 @@
       (typeof seek.target === "number" && scanned > seek.target + 30) ||
       pageOlderThanMarker(feed, marker);
 
+    dbg(
+      "archivio: esaminate", scanned, "· posizione attesa", seek.target,
+      "· pagina più vecchia del segnalibro", pageOlderThanMarker(feed, marker),
+      "· oltre", overshot
+    );
     if (!feed.length || overshot || page >= archiveMaxPages()) {
+      dbg(
+        "archivio: ricerca FERMATA ·",
+        !feed.length ? "pagina vuota" : overshot ? "oltre la posizione del segnalibro" : "tetto di pagine"
+      );
       // Fine ricerca senza esito (pagina vuota, tetto raggiunto, o segnalibro
       // ormai superato): fermarsi, non navigare all'infinito. E dirlo: la
       // ricerca sfoglia pagine da sola, se smette in silenzio sembra che si sia
@@ -1299,8 +1417,8 @@
         true
       );
       try {
-        console.log(
-          "[Segnalibro] ricerca nell'archivio interrotta a pagina",
+        dbg(
+          "ricerca nell'archivio interrotta a pagina",
           page
         );
       } catch (e) {}
@@ -1315,6 +1433,8 @@
     const next = { page: page + 1, ts: seek.ts, scanned: scanned };
     if (typeof seek.target === "number") next.target = seek.target;
     await setStore({ [K.seek]: next });
+    dbg("archivio: non è qui, vado a", archiveUrlFor(page + 1), "· flag", next);
+    dbgFlush();
     location.assign(archiveUrlFor(page + 1));
   }
 
@@ -1334,12 +1454,32 @@
   // Scarica una pagina del sito (stessa origine: nessun permesso extra) e la
   // restituisce parsata. Senza credenziali: sono pagine pubbliche, non serve
   // presentarsi come l'utente (vedi PRIVACY.md).
+  // Mai dalla cache HTTP (cache: "no-store"): al riavvio del browser una copia
+  // vecchia servita dalla cache darebbe un conteggio di un'altra giornata. Il
+  // motivo di un fallimento finisce in console: è l'unico indizio quando il
+  // conteggio fallisce solo nel browser dell'utente (bug #17).
   async function fetchFeedDoc(url) {
+    const t = Date.now();
     try {
-      const resp = await fetch(url, { credentials: "omit" });
-      if (!resp.ok) return null;
-      return new DOMParser().parseFromString(await resp.text(), "text/html");
+      const resp = await fetch(url, { credentials: "omit", cache: "no-store" });
+      if (!resp.ok) {
+        dbg(
+          "conteggio: HTTP", resp.status, resp.statusText || "",
+          "in", Date.now() - t, "ms ·", url, "· online", navigator.onLine
+        );
+        return null;
+      }
+      const text = await resp.text();
+      dbg(
+        "conteggio: HTTP", resp.status, "·", text.length, "caratteri in",
+        Date.now() - t, "ms ·", url
+      );
+      return new DOMParser().parseFromString(text, "text/html");
     } catch (e) {
+      dbg(
+        "conteggio: ERRORE di rete", e, "dopo", Date.now() - t, "ms ·", url,
+        "· online", navigator.onLine, "· visibile", document.visibilityState
+      );
       return null;
     }
   }
@@ -1361,20 +1501,37 @@
       const articles = collectArticles(doc, url);
       // Pagina senza notizie = fine dell'archivio o markup cambiato (hdblog
       // risponde così da page=11 in poi): non si va oltre.
-      if (!articles.length) return partial();
+      if (!articles.length) {
+        dbg(
+          "conteggio: nessuna notizia nella risposta (pagina", page + ")",
+          "· contate finora", count, "·", url
+        );
+        return partial();
+      }
+      dbg(
+        "conteggio: pagina", page, "·", articles.length, "notizie (" +
+          (articles.dups ? articles.dups.length : 0) + " doppioni) · dalla",
+        articles[0].key, "alla", articles[articles.length - 1].key
+      );
       for (const a of articles) {
         // Le pagine possono sovrapporsi (il feed scorre tra un fetch e l'altro).
         if (seen.has(a.key)) continue;
         seen.add(a.key);
-        if (a.key === markerKey) return { count: count, exact: true };
+        if (a.key === markerKey) {
+          dbg("conteggio: segnalibro", markerKey, "trovato in posizione", count, "(esatto)");
+          return { count: count, exact: true };
+        }
         count++;
       }
     }
+    dbg(
+      "conteggio: segnalibro", markerKey, "NON trovato fra", count,
+      "notizie (tetto", maxPages, "pagine): limite inferiore"
+    );
     return { count: count, exact: false }; // marker oltre il tetto: limite inferiore
   }
 
-  async function refineUnread(markerKey, newestKey) {
-    let res = null;
+  async function countOnce(markerKey, newestKey) {
     try {
       const stored = await getStore([K.count]);
       const cached = stored[K.count];
@@ -1386,26 +1543,77 @@
         typeof cached.ts === "number" &&
         Date.now() - cached.ts < COUNT_TTL_MS
       ) {
-        res = { count: cached.count, exact: !!cached.exact };
-      } else {
-        res = await countUnreadInArchive(markerKey);
-        if (res) {
-          await setStore({
-            [K.count]: {
-              marker: markerKey,
-              newest: newestKey,
-              count: res.count,
-              exact: res.exact,
-              ts: Date.now(),
-            },
-          });
-        }
+        dbg(
+          "conteggio: dalla cache ·", cached.count,
+          cached.exact ? "(esatto)" : "(limite inferiore)",
+          "· età", Math.round((Date.now() - cached.ts) / 1000), "s"
+        );
+        return { count: cached.count, exact: !!cached.exact };
       }
+      const res = await countUnreadInArchive(markerKey);
+      if (res) {
+        await setStore({
+          [K.count]: {
+            marker: markerKey,
+            newest: newestKey,
+            count: res.count,
+            exact: res.exact,
+            ts: Date.now(),
+          },
+        });
+      }
+      return res;
     } catch (e) {
-      res = null;
+      dbg("conteggio: ECCEZIONE", e, e && e.stack ? e.stack.split("\n")[1] : "");
+      return null;
     }
-    // Il marker può essere cambiato nel frattempo (es. "Segna tutte come lette"):
-    // in quel caso l'esito non vale più.
+  }
+
+  // Il primo caricamento dopo l'avvio del browser può trovare la rete non
+  // ancora pronta: il conteggio falliva una volta sola e restava "20+" per
+  // tutta la visita, finché l'utente non ricaricava (bug #17). Ora si riprova
+  // a intervalli crescenti; dopo il primo fallimento il toast non aspetta più
+  // (mostra il limite inferiore) e badge/toast si correggono appena il numero
+  // vero arriva.
+  const COUNT_RETRY_MS = [2000, 5000, 12000];
+  let refinePromise = null;
+
+  function startRefine(markerKey, newestKey) {
+    refining = true;
+    const p = refineUnread(markerKey, newestKey);
+    refinePromise = p;
+    p.finally(() => {
+      if (refinePromise === p) refinePromise = null;
+    });
+    return p;
+  }
+
+  async function refineUnread(markerKey, newestKey) {
+    dbg("conteggio: avvio · segnalibro", markerKey, "· più recente", newestKey);
+    let res = await countOnce(markerKey, newestKey);
+    for (let i = 0; !res && i < COUNT_RETRY_MS.length; i++) {
+      if (refining) {
+        refining = false;
+        applyHighlight(); // sblocca il toast col limite inferiore
+      }
+      dbg(
+        "conteggio: FALLITO (tentativo " + (i + 1) + "/" + (COUNT_RETRY_MS.length + 1) + ")",
+        "· riprovo tra", COUNT_RETRY_MS[i], "ms"
+      );
+      await sleep(COUNT_RETRY_MS[i]);
+      // Il marker può essere cambiato nel frattempo (es. "Segna tutte come
+      // lette"): il conteggio non serve più.
+      if (state.markerKey !== markerKey) {
+        dbg("conteggio: annullato, il segnalibro è cambiato nel frattempo");
+        return;
+      }
+      res = await countOnce(markerKey, newestKey);
+    }
+    if (res)
+      dbg("conteggio: esito", res.count, res.exact ? "(esatto)" : "(limite inferiore)");
+    else
+      dbg("conteggio: FALLITO dopo tutti i tentativi · resta il limite inferiore del feed in pagina");
+    // Il marker può essere cambiato nel frattempo: in quel caso l'esito non vale più.
     if (res && state.markerKey === markerKey) refined = res;
     refining = false;
     applyHighlight(); // ri-applica col numero esatto (o sblocca il toast col fallback)
@@ -1417,11 +1625,19 @@
 
   async function scrollToMarker() {
     // Popup e toast possono chiamarla entrambi: una ricerca alla volta.
-    if (seekBusy) return false;
+    if (seekBusy) {
+      dbg("ricerca: già in corso, richiesta ignorata");
+      return false;
+    }
     seekBusy = true;
     seekCancelled = false; // nuova ricerca: l'eventuale annullamento è vecchio
     try {
-      return await seekMarker();
+      const ok = await seekMarker();
+      dbg("ricerca: fine sulla pagina · esito", ok);
+      return ok;
+    } catch (e) {
+      dbg("ricerca: ECCEZIONE", e, e && e.stack ? e.stack.split("\n")[1] : "");
+      throw e;
     } finally {
       seekBusy = false;
     }
@@ -1467,8 +1683,53 @@
     //  - il sito dichiara il suo lazy-load inaffidabile (site.noScrollSeek:
     //    hdblog raddoppia ogni blocco e si ferma a ~60 notizie, bug #16) e ha
     //    un archivio che copre anche la home: lì si arriva senza scrollare.
-    const beyondFeed = !!(refined && !refined.exact);
     const onArchivePage = archivePageNum() !== null;
+    dbg(
+      "ricerca: avvio · segnalibro", state.markerKey,
+      "· già in pagina", !!el,
+      "· feed", getFeedArticles().length,
+      "· pagina archivio", archivePageNum(),
+      "· conteggio", refined, "· conteggio in corso", !!refinePromise
+    );
+    // La strada (scroll, pagina d'archivio da cui partire, quando smettere)
+    // dipende dal conteggio: se è ancora in corso lo si aspetta, se era fallito
+    // (rete non pronta al primo caricamento, bug #17) lo si rifà adesso, invece
+    // di partire alla cieca col solo limite inferiore delle notizie in pagina.
+    if (!el && state.markerKey && site.archive && !onArchivePage && !refined) {
+      showSeekToast("Cerco l'ultima letta… conto le notizie nuove");
+      if (refinePromise) {
+        dbg("ricerca: aspetto il conteggio in corso");
+        await refinePromise;
+      } else if (state.newestKey) {
+        dbg("ricerca: conteggio assente o fallito, lo rifaccio");
+        const mk = state.markerKey;
+        const res = await countOnce(mk, state.newestKey);
+        if (res && state.markerKey === mk) {
+          refined = res;
+          applyHighlight();
+        }
+      }
+      dbg("ricerca: conteggio disponibile ·", refined);
+      if (seekCancelled) {
+        dbg("ricerca: annullata dall'utente (×)");
+        return false;
+      }
+    }
+    const beyondFeed = !!(refined && !refined.exact);
+    dbg(
+      "ricerca: strada ·",
+      el
+        ? "già in pagina"
+        : site.feedStatic
+        ? "feed statico → archivio"
+        : site.noScrollSeek && site.archive
+        ? "noScrollSeek → attesa feed, poi archivio"
+        : beyondFeed
+        ? "oltre il muro del feed → archivio"
+        : onArchivePage
+        ? "da pagina d'archivio → pagina successiva"
+        : "scroll della home"
+    );
     if (
       !el &&
       state.markerKey &&
@@ -1520,15 +1781,22 @@
       await waitFeedSettled(state.markerKey);
       reapplyIfChanged();
       el = document.querySelector(".hdb-marker");
+      dbg(
+        "ricerca: feed assestato ·", getFeedArticles().length, "notizie · segnalibro in pagina", !!el
+      );
     }
     if (el) {
+      dbg("ricerca: segnalibro TROVATO in pagina, lo centro");
       dismissSeekToast();
       flashAndCenter(el);
       return true;
     }
     // Annullata con la × mentre caricava: non si prosegue nell'archivio (il
     // flag l'ha già tolto il pulsante di chiusura).
-    if (seekCancelled) return false;
+    if (seekCancelled) {
+      dbg("ricerca: annullata dall'utente (×)");
+      return false;
+    }
 
     // Feed della pagina finito senza trovare il segnalibro: la ricerca continua
     // nell'ARCHIVIO paginato del sito, pagina per pagina (vedi initArchive) —
@@ -1540,8 +1808,14 @@
       // pagina che contiene la posizione nota del segnalibro (hdblog: 100
       // notizie a pagina, quindi "150 non lette" -> dritti a pagina 2).
       const cur = archivePageNum();
+      const lb = markerPositionLowerBound();
+      const startPage = cur === null ? archiveStartPage(lb) : cur + 1;
+      dbg(
+        "ricerca: non in pagina → archivio da pagina", startPage,
+        "· posizione minima nota", lb, "· posizione esatta", exactMarkerIndex()
+      );
       return await startArchiveSeek(
-        cur === null ? archiveStartPage(markerPositionLowerBound()) : cur + 1,
+        startPage,
         // Posizione esatta del segnalibro, quando la conosciamo: dice alla
         // passeggiata nell'archivio quando è inutile andare oltre. Sulla home
         // viene dal conteggio; da una pagina d'archivio (dove il conteggio non
@@ -1551,6 +1825,7 @@
     }
     // Niente archivio (o niente segnalibro): meglio dirlo che restare muti —
     // il pulsante sembrerebbe rotto.
+    dbg("ricerca: segnalibro non trovato e nessun archivio · segnalibro", state.markerKey);
     if (state.markerKey)
       showSeekToast(
         "Non sono riuscito a trovare l'ultima letta in questa pagina. " +
@@ -1578,6 +1853,8 @@
       await setStore({ [K.rescroll]: { ts: Date.now() } });
       const u = new URL(location.href);
       u.searchParams.set(KEEP_PARAM, "1");
+      dbg("ricarica pulita: vado a", u.href);
+      dbgFlush();
       // replace() e non assign(): non lasciamo in cronologia l'URL col marcatore
       // (viene comunque ripulito da stripVisitParams al caricamento). L'ANCORA
       // resta, ed è quella che fa rirenderizzare a hdblog i blocchi già aperti.
@@ -1603,6 +1880,7 @@
       const feed = getFeedArticles();
       newest = feed.length ? feed[0].key : null;
     }
+    dbg("segna tutte come lette · archivio", onArchive, "· nuovo segnalibro", newest, "· era", state.markerKey);
     if (!newest) return lastStatus;
 
     state.markerKey = newest;
@@ -1831,6 +2109,7 @@
 
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (!msg || !msg.type) return;
+    if (msg.type !== "getStatus") dbg("comando dal pop-up/toast:", msg.type);
     if (msg.type === "getStatus") {
       sendResponse(lastStatus);
       return true;
@@ -1869,6 +2148,11 @@
     }
 
     settings = await getSettings();
+    dbg(
+      "avvio · impostazioni", settings, "· home", isHome(),
+      "· stessa visita (auto-refresh/ricarica pulita)", sameVisitLoad,
+      "· ricarica pulita", keepLoad
+    );
 
     if (!settings.enabled) {
       lastStatus = { onHome: isHome(), siteName: site.name, disabled: true };
@@ -1900,8 +2184,8 @@
         } catch (e) {}
       } else if (settings.trackInterests) {
         try {
-          console.log(
-            "[Segnalibro] pagina NON riconosciuta come articolo (non tracciata):",
+          dbg(
+            "pagina NON riconosciuta come articolo (non tracciata):",
             location.pathname
           );
         } catch (e) {}
@@ -1918,6 +2202,11 @@
     applyAccent();
 
     const feed = await waitForFeed();
+    dbg(
+      "home: feed", feed.length, "notizie ·", feed.raw, "nodi ·",
+      feed.length ? "dalla " + feed[0].key + " alla " + feed[feed.length - 1].key : "VUOTO (selettori?)",
+      "· readyState", document.readyState
+    );
 
     if (!feed.length) {
       lastStatus = {
@@ -1994,6 +2283,23 @@
       pending = currentNewest;
     }
 
+    const markerIdx = feed.findIndex((a) => a.key === marker);
+    dbg(
+      "registro:",
+      !store[K.init]
+        ? "PRIMA VOLTA"
+        : sameVisit
+        ? "stessa visita (fermo)"
+        : settings.freezeMarker
+        ? "segnalibro bloccato (fermo)"
+        : store[K.reached]
+        ? "raggiunto → AVANZA"
+        : "mai raggiunto (fermo)",
+      "· prima: marker", store[K.marker], "pending", store[K.pending], "reached", store[K.reached],
+      "· dopo: marker", marker, "pending", pending,
+      "· segnalibro nel feed in posizione", markerIdx
+    );
+
     await setStore({
       [K.marker]: marker,
       [K.pending]: pending,
@@ -2005,6 +2311,7 @@
       [K.reached]: sameVisit ? !!store[K.reached] : false,
     });
     state.markerKey = marker;
+    state.newestKey = currentNewest;
     // Coerente con lo storage: se il segnalibro era già stato raggiunto prima del
     // ricaricamento, non serve rimettersi a osservarlo.
     if (sameVisit && store[K.reached]) reachedThisVisit = true;
@@ -2012,9 +2319,8 @@
     // Segnalibro fuori dal feed + archivio disponibile: parte il conteggio esatto
     // (asincrono, non blocca l'evidenziazione). Il toast aspetta l'esito; badge e
     // popup mostrano intanto il limite inferiore "N+".
-    if (site.archive && !feed.some((a) => a.key === marker)) {
-      refining = true;
-      refineUnread(marker, currentNewest);
+    if (site.archive && markerIdx < 0) {
+      startRefine(marker, currentNewest);
     }
 
     applyHighlight();
@@ -2028,15 +2334,16 @@
     const rescroll = store[K.rescroll];
     if (rescroll) {
       await removeStore(K.rescroll);
-      if (
+      const fresh =
         keepLoad &&
         typeof rescroll.ts === "number" &&
-        Date.now() - rescroll.ts < RESCROLL_TTL_MS
-      ) {
-        scrollToMarker();
-      }
+        Date.now() - rescroll.ts < RESCROLL_TTL_MS;
+      dbg("ricarica pulita: flag di ritorno all'ultima letta · uso", fresh, rescroll);
+      if (fresh) scrollToMarker();
     }
   }
 
-  init();
+  init().catch((e) =>
+    dbg("avvio: ECCEZIONE", e, e && e.stack ? e.stack.split("\n")[1] : "")
+  );
 })();

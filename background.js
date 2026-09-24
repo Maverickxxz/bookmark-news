@@ -126,7 +126,26 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
     trackChain = trackChain.then(() => doTrack(msg.entry)).catch(() => {});
     return;
   }
+
+  if (msg.type === "debugLog" && Array.isArray(msg.lines) && msg.lines.length) {
+    const tab = sender.tab ? "tab " + sender.tab.id + " " : "";
+    const lines = msg.lines.map((l) => tab + String(l).slice(0, 2000));
+    logChain = logChain.then(() => appendDebugLog(lines)).catch(() => {});
+    return;
+  }
 });
+
+// Registro diagnostico (vedi dbg() in content.js): righe dalle schede, scritte
+// in coda (più schede insieme non si sovrascrivono) nella chiave `debugLog`,
+// ultime DEBUG_LOG_MAX. Solo locale: si legge da Impostazioni → Diagnostica.
+const DEBUG_LOG_MAX = 1500;
+let logChain = Promise.resolve();
+
+async function appendDebugLog(lines) {
+  const o = await getLocal("debugLog");
+  const all = (Array.isArray(o.debugLog) ? o.debugLog : []).concat(lines);
+  await setLocal({ debugLog: all.slice(-DEBUG_LOG_MAX) });
+}
 
 // Ripulitura doppioni: all'installazione/aggiornamento e a ogni avvio del service
 // worker (serializzata con le scritture). È idempotente, quindi gira senza danni.

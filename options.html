@@ -132,6 +132,25 @@
       </section>
 
       <section class="card">
+        <div class="card-head">
+          <h2>Diagnostica</h2>
+          <div class="export-row log-actions">
+            <button id="log-copy" class="btn-export" title="Copia il registro negli appunti">Copia</button>
+            <button id="log-download" class="btn-export" title="Scarica il registro in un file .txt">Scarica (TXT)</button>
+            <button id="log-clear" class="btn-export" title="Cancella il registro">Svuota</button>
+          </div>
+        </div>
+        <p class="muted small">
+          Cosa fa l'estensione passo per passo sui siti supportati: segnalibro, conteggio
+          delle notizie nuove, ricerca dell'ultima letta. Se qualcosa non va, riproduci il
+          problema, poi copia o scarica il registro e allegalo alla segnalazione. Resta
+          solo nel tuo browser (ultime 1500 righe), niente viene inviato.
+        </p>
+        <p class="muted small" id="log-count"></p>
+        <pre id="log-view" class="log-view"></pre>
+      </section>
+
+      <section class="card">
         <h2>Segnalazioni e codice sorgente</h2>
         <p class="muted small">
           Hai trovato un problema, qualcosa non funziona come dovrebbe o vuoi che
