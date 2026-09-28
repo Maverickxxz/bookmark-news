@@ -8,6 +8,38 @@ Le spiegazioni lunghe della logica stanno in `CLAUDE.md`; qui c'è solo la stori
 
 ---
 
+## #18 — Su hdblog, alla prima ricerca della giornata, "Vai all'ultima letta" non arrivava alla notizia; dopo un refresh sì
+**Versione:** 0.4.4 · **Data:** 26/09/2026 · **Sito:** hdblog · **Segnalato da:** utente
+
+- **Sintomo:** aprendo hdblog per la prima volta con notizie da leggere, "Vai all'ultima letta"
+  portava su `/page/1/` ma non alla notizia (restava "a cercare"); refresh + nuovo clic → ci
+  arrivava correttamente.
+- **Causa:** le `/page/N/` di hdblog stanno dietro una **verifica Cloudflare Turnstile**
+  ("HDblog.it - Verifica Connessione", HTTP 429). Senza il cookie di verifica (in pratica alla
+  prima visita della giornata) il browser riceve una pagina **senza notizie** che si verifica da
+  sola e poi fa `location.reload()`. `initArchive` girava sulla pagina di verifica, dopo 1,8s
+  vedeva 0 notizie, la scambiava per "pagina vuota = fine dell'archivio", **toglieva il flag
+  `seek`** e mostrava "Non sono riuscito ad arrivare…". Al reload arrivava la pagina vera, ma
+  senza flag era una visita normale: notizia evidenziata, nessuna centratura. Dal secondo
+  tentativo il cookie c'era e tutto funzionava. Trovato nel registro diagnostico (25/09, 10:14:
+  `pagina 1 · 0 notizie · (vuota)` → `ricerca FERMATA · pagina vuota` → 1,2s dopo la stessa
+  `/page/1/` si ricarica da sola con 100 notizie e il segnalibro alla posizione 24) e confermato
+  scaricando `/page/1/` senza cookie: risponde il markup della verifica.
+- **Correzione (`content.js`):** `isChallengePage()` riconosce le pagine di verifica (script di
+  `challenges.cloudflare.com`, `#challenge-form`, `.cf-turnstile`, titolo "Verifica
+  connessione"/"Just a moment"). In `initArchive`, se la pagina è una verifica la ricerca **non si
+  ferma**: il flag resta, il toast dice che il sito sta verificando la connessione, e al reload
+  fatto dalla verifica la stessa pagina riprende la ricerca e centra la notizia. In più, durante
+  una ricerca, una pagina senza notizie ha 6 secondi in più prima di essere dichiarata vuota.
+- **Verifica:** `scratchpad/test-challenge-seek.ps1` (Chrome headless, vero `content.js`, la
+  verifica simulata con lo stesso markup di quella vera + reload): verifica da 2,5s e da 8s →
+  notizia centrata su `/page/1/`, flag rimosso; senza verifica invariato. Sul codice precedente lo
+  stesso test fallisce riproducendo il registro dell'utente. `test-live-seek.ps1` 7/7 ok,
+  `test-count-retry.ps1` 2/2 ok (corretto il test: prendeva come segnalibro la 50ª notizia anche
+  quando era di hdmotori, chiave inesistente).
+
+---
+
 ## #17 — Su hdblog, al primo caricamento, "20+" e ultima letta introvabile; al secondo refresh tutto ok
 **Versione:** 0.4.3 · **Data:** 24/09/2026 · **Sito:** hdblog · **Segnalato da:** utente
 

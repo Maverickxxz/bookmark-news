@@ -23,7 +23,8 @@ Stop-TestChrome
 Cdp-Open
 Cdp-Navigate "https://www.hdblog.it/page/1/" 6000
 $ids = Cdp-Eval "JSON.stringify([...document.querySelectorAll('article.newlist_normal')].filter(a=>!a.closest('#listnewssdx')).map(a=>{const l=a.querySelector('a.title_new[href]');const m=l&&l.getAttribute('href').match(/\/n(\d+)\//);return m?'n'+m[1]:'x'}))" | ConvertFrom-Json
-$m = $ids[50]
+# Solo notizie hdblog: le hdmotori (chiave "x" qui) non danno un id nXXXXXX.
+$m = @($ids | Where-Object { $_ -ne "x" })[50]
 Cdp-Send "Network.enable" @{} | Out-Null
 $null = Harness-Install
 Cdp-Navigate "https://www.hdblog.it/" 4000

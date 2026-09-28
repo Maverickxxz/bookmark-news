@@ -1251,6 +1251,29 @@
     return older / ids.length >= 0.9;
   }
 
+  // Pagina di verifica anti-bot servita AL POSTO della pagina vera: le /page/N/
+  // di hdblog stanno dietro Cloudflare Turnstile ("HDblog.it - Verifica
+  // Connessione", HTTP 429). Senza il cookie di verifica — di solito alla prima
+  // visita della giornata — arriva una pagina senza notizie che si verifica da
+  // sola e poi fa location.reload(). Non è una pagina vuota dell'archivio: è
+  // la stessa pagina, fra un attimo (bug #18).
+  function isChallengePage() {
+    try {
+      if (
+        document.querySelector(
+          'script[src*="challenges.cloudflare.com"], #challenge-form, ' +
+            "#challenge-running, .cf-turnstile, #cf-wrapper"
+        )
+      )
+        return true;
+      return /verifica connessione|just a moment|attendere prego/i.test(
+        document.title || ""
+      );
+    } catch (e) {
+      return false;
+    }
+  }
+
   // Pagina archivio: SOLO ricerca/evidenziazione. Il caricamento non avanza mai il
   // segnalibro (marker/pending/init restano intatti — l'unico modo di cambiarlo da
   // qui è il pulsante "Segna tutte come lette", vedi markAllRead); "reached" invece
@@ -1308,6 +1331,28 @@
     state.markerKey = marker;
 
     let feed = await waitForFeed();
+    // Pagina di verifica del sito invece della pagina d'archivio: la ricerca
+    // NON si ferma e il flag resta, perché al reload fatto dalla verifica
+    // questa stessa pagina riparte da qui e trova la notizia. Prima la
+    // scambiavamo per "pagina vuota": ricerca chiusa, e al reload la notizia
+    // veniva solo evidenziata, senza portarci l'utente (bug #18).
+    // Pagina che ci mette più del solito a mostrare le notizie: prima di
+    // dichiararla vuota e chiudere la ricerca, un po' più di pazienza.
+    if (!feed.length && seeking && !isChallengePage())
+      feed = await waitForFeed(40, 150);
+    if (!feed.length && isChallengePage()) {
+      dbg(
+        "archivio: pagina", page, "· VERIFICA ANTI-BOT del sito (" + document.title + ")",
+        "· ricerca attiva", seeking, "· aspetto il reload della verifica"
+      );
+      if (seeking)
+        showSeekToast(
+          "Il sito sta verificando la connessione… la ricerca dell'ultima " +
+            "letta riprende da sola appena finisce (se ti chiede una conferma, " +
+            "dagliela)."
+        );
+      return;
+    }
     let idx = feed.findIndex((a) => a.key === marker);
     dbg(
       "archivio: pagina", page, "·", feed.length, "notizie ·",

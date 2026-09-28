@@ -297,6 +297,17 @@ aspetta più. Il fetch è `cache: "no-store"` e logga il motivo del fallimento i
 `seekMarker` aspetta il conteggio in corso (`refinePromise`) o, se è fallito, lo rifà
 (`state.newestKey`) prima di scegliere la strada. Verificato con `scratchpad/test-count-retry.ps1`.
 
+**La verifica anti-bot non è una pagina vuota (v0.4.4)** — segnalato dall'utente: alla prima
+ricerca della giornata "Vai all'ultima letta" arrivava su `/page/1/` senza portare alla notizia,
+al secondo tentativo sì (bug #18). Le `/page/N/` di hdblog stanno dietro **Cloudflare Turnstile**:
+senza il cookie di verifica arriva "HDblog.it - Verifica Connessione" (HTTP 429, nessuna notizia),
+che si verifica da sola e fa `location.reload()`. `initArchive` la scambiava per "pagina vuota",
+chiudeva la ricerca e il reload trovava una visita normale. Ora `isChallengePage()` la riconosce
+e la ricerca resta aperta (flag `seek` intatto, toast "il sito sta verificando la connessione"):
+al reload la stessa pagina la riprende. È anche il motivo per cui il primo caricamento di
+`/page/1/` in un Chrome headless appena avviato può tornare vuoto nei test live. Verificato con
+`scratchpad/test-challenge-seek.ps1` (verifica simulata con il markup vero + reload).
+
 ## File
 
 - `manifest.json` — MV3; `matches` elenca gli host; carica `sites.js` poi `content.js`.
