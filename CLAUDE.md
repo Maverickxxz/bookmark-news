@@ -308,11 +308,43 @@ al reload la stessa pagina la riprende. È anche il motivo per cui il primo cari
 `/page/1/` in un Chrome headless appena avviato può tornare vuoto nei test live. Verificato con
 `scratchpad/test-challenge-seek.ps1` (verifica simulata con il markup vero + reload).
 
+**L'archivio non elenca tutto quel che sta nella home: l'àncora (v0.4.5)** — segnalato
+dall'utente: il segnalibro «non si aggiorna più, rimane una notizia passata» e "Vai all'ultima
+letta" «fa fatica» (bug #19). Da ottobre 2026 le `/page/N/` di hdblog **non elencano più le notizie
+hdmotori**, che home e conteggio mostrano ancora (~1 su 5, spesso la prima: misurato home 4/20,
+`pages.php` 21/100, `/page/1/` 0/100). `pending` = prima notizia della home, quindi il segnalibro
+cadeva spesso su hdmotori; fuori dalla home la ricerca non lo trovava nell'archivio, "raggiunto"
+non scattava mai e il registro restava "mai raggiunto (fermo)" per sempre.
+**Non** si è scelto di saltare le notizie hdmotori quando si sceglie `pending`: le hdmotori sopra
+di lui risulterebbero "nuove" anche alla visita dopo, e il conteggio smetterebbe di essere esatto.
+Il segnalibro resta la notizia vera; in più `archive.idOnly: true` (in `sites.js`) dice che
+l'archivio elenca solo le notizie con id (`archiveListsKey`), e ogni segnalibro si porta dietro
+un'**àncora d'archivio** = la prima notizia elencata da lui in giù (`archiveAnchorIn`; per un
+segnalibro hdblog è lui stesso). Storage `anchor_<id>` (del marker) e `pendingAnchor_<id>`
+(di pending, presa dal feed nel momento in cui pending è la prima notizia, perché quando diventerà
+marker sarà magari fuori dalla home): nel registro di `init()` l'àncora segue il suo segnalibro
+(marker ← pending ⇒ anchor ← pendingAnchor), e lo stesso fa `markAllRead`. `initArchive` cerca
+l'àncora (`lookKey`) al posto di un segnalibro non elencato, anche per `pageOlderThanMarker`, e
+la evidenzia: è la notizia più recente già letta fra quelle elencate, quindi l'etichetta "Ultima
+letta" resta vera. Segnalibri di prima della v0.4.5, senza àncora: la ricava il conteggio, che
+dopo aver trovato il segnalibro nella sequenza va avanti fino alla prima notizia elencata
+(`countUnreadInArchive` → `anchor`, salvata in `count_<id>` e in `anchor_<id>`). Il conteggio dà
+anche `archivePos` = posizione contando solo le notizie elencate, che è quella giusta per
+`archiveStartPage` e `seek.target` (`refinedArchivePos`): col numero di non lette la pagina
+calcolata poteva essere già oltre il segnalibro (100+ → `/page/2/` con il segnalibro in fondo
+alla 1). Insieme: `trackArticle` non registra la pagina di verifica anti-bot (salvava "HDblog.it -
+Verifica Connessione" come titolo), il SW ripara quelle già salvate alla prossima apertura, e il
+registro diagnostico scrive "visita finita" a ogni uscita dalla home (raggiunto, scheda mai in
+primo piano, scroll massimo, posizione del segnalibro): è la riga che spiega un "mai raggiunto".
+Verificato con `scratchpad/test-hdmotori-anchor.ps1` (14 controlli live; sul codice precedente
+fallisce come nel guasto) + `test-live-seek.ps1` 7/7 + `test-challenge-seek.ps1` +
+`test-count-retry.ps1`.
+
 ## File
 
 - `manifest.json` — MV3; `matches` elenca gli host; carica `sites.js` poi `content.js`.
 - `sites.js` — **registro dei siti** (`NEWS_SITES`) + helper condivisi (`findSiteForUrl`, `isSiteHome`). Caricato sia dai content script sia dal popup.
-- `content.js` — logica generica (usa la config del sito attivo). Storage per-sito: `marker_<id>`, `pending_<id>`, `initialized_<id>`, `reached_<id>`, `seek_<id>`, `count_<id>`, `rescroll_<id>`. Mostra anche un toast in pagina (`renderToast`) col numero di notizie nuove, solo quando `unread > 0`; auto-dismiss dopo 7s di scheda VISIBILE (in background aspetta; pausa/ripresa su `visibilitychange`), una volta per caricamento; un secondo toast (`showSeekToast`, con rotellina) accompagna la ricerca dell'ultima letta — sia mentre carica il feed a forza di scroll (`growFeedByScrolling`, con il conto delle notizie caricate) sia mentre sfoglia l'archivio — e dice perché si è fermata; la sua × la annulla togliendo il flag `seek`. Sulle pagine ARTICOLO chiama `trackArticle()`, che NON scrive: invia l'entry al service worker.
+- `content.js` — logica generica (usa la config del sito attivo). Storage per-sito: `marker_<id>`, `pending_<id>`, `anchor_<id>`, `pendingAnchor_<id>`, `initialized_<id>`, `reached_<id>`, `seek_<id>`, `count_<id>`, `rescroll_<id>`. Mostra anche un toast in pagina (`renderToast`) col numero di notizie nuove, solo quando `unread > 0`; auto-dismiss dopo 7s di scheda VISIBILE (in background aspetta; pausa/ripresa su `visibilitychange`), una volta per caricamento; un secondo toast (`showSeekToast`, con rotellina) accompagna la ricerca dell'ultima letta — sia mentre carica il feed a forza di scroll (`growFeedByScrolling`, con il conto delle notizie caricate) sia mentre sfoglia l'archivio — e dice perché si è fermata; la sua × la annulla togliendo il flag `seek`. Sulle pagine ARTICOLO chiama `trackArticle()`, che NON scrive: invia l'entry al service worker.
 - `content.css` — evidenziazione + toast in basso a destra; colore per sito via variabili `--hdb-accent*` impostate da JS.
 - `background.js` — imposta il badge (numero + colore) per tab; riceve `trackArticle` e scrive gli interessi in modo **serializzato** (`trackChain`) per evitare race tra schede; qui stanno l'**anti-doppioni** (un articolo si registra una sola volta per `sito+chiave` = `entryId`; riaprirlo aggiorna solo il `ts` di ultima apertura, senza ricontare cat/keyword), gli aggregati e il cap a 1000. `dedupeInterests` è la migrazione una-tantum (a onInstalled + avvio SW) che ripulisce i doppioni storici e ricostruisce i conteggi dalla lista deduplicata (idempotente).
 - `popup.html/js/css` — stato + pulsanti (vai all'ultima letta / **ricarica pulita** / segna tutte come lette) + nota sui doppioni nascosti + avviso "segnalibro bloccato" (`status.frozen`) + link Impostazioni + stato "disattivata". I pulsanti compaiono sulla **home** e sulle **pagine archivio** (`status.archive`, v0.3.5); su articoli/sezioni e su hdmotori resta il pannello "apri la home". "Ricarica pulita" è nascosta nell'archivio (lì il feed è storico).
@@ -333,7 +365,7 @@ Impostazioni → Diagnostica (`loadDebugLog`; l'export ha in testa versione e us
 avvio e impostazioni, feed della home, decisione del registro (prima/dopo), ogni tentativo del
 conteggio (HTTP, durata, notizie, esito, retry), stato mostrato (solo quando cambia), strada della
 ricerca, fine dello scroll col motivo, ogni pagina d'archivio (flag, contenuto, trovato/fermata e
-perché), "raggiunto", comandi del popup, eccezioni di `init`/ricerca/conteggio. Quando l'utente
+perché), "raggiunto", fine di ogni visita della home ("visita finita": raggiunto, scheda mai in primo piano, scroll massimo — v0.4.5), comandi del popup, eccezioni di `init`/ricerca/conteggio. Quando l'utente
 segnala un comportamento strano, chiedere PRIMA il registro. Dichiarato in `PRIVACY.md` (voce 5).
 - `rileva-selettori.js` — **strumento** (non parte dell'estensione): da incollare nella Console per ricavare i selettori di siti che bloccano il fetch remoto.
 - `build.ps1` — **pacchetto per il Web Store**: elenco ESPLICITO dei file che spediscono (whitelist,
@@ -410,6 +442,9 @@ dati già raccolti (aggregato `keywords` + `opened[].kw`). Verificato con `scrat
   rispondono 200 — non usato: il conteggio resta senza credenziali, vedi PRIVACY.md). In fondo a
   ogni `/page/N/` una barra laterale `#listnewssdx` ripete le 5 notizie più recenti con la stessa
   classe del feed → `articleExclude`.
+  Da ottobre 2026 le `/page/N/` **non elencano le notizie hdmotori** che stanno nella home e nel
+  conteggio (~1 su 5) → `idOnly: true` e àncora d'archivio per i segnalibri hdmotori (v0.4.5);
+  per lo stesso motivo `/page/1/` va più indietro nel tempo delle 100 notizie del conteggio.
   La home si **auto-ricarica** ogni 777s via meta refresh su `/?refresh_ce` →
   `autoRefreshParam: "refresh_ce"` impedisce che quei caricamenti facciano avanzare il
   segnalibro (v0.3.5); il parametro viene poi tolto dall'URL con `replaceState` così la
@@ -487,6 +522,14 @@ dati già raccolti (aggregato `keywords` + `opened[].kw`). Verificato con `scrat
 - Un'ipotesi sulla posizione del segnalibro va presa come **limite inferiore**, mai come stima
   "circa": le notizie nuove si impilano sopra, quindi la posizione può solo crescere. Partire
   dalla pagina del limite inferiore non salta mai il segnalibro (`archiveStartPage`).
+  La posizione va contata **nella sequenza dell'archivio**, non in quella della home: se
+  l'archivio non elenca tutto (`idOnly`), il numero di non lette la sovrastima e la pagina
+  calcolata può essere già oltre (`archivePos`, bug #19).
+- **Home e archivio non sono la stessa lista** (bug #19): prima di cercare un segnalibro
+  nell'archivio chiedersi se l'archivio può contenerlo. Un segnalibro che l'archivio non elenca
+  non diventa mai "raggiunto" e blocca il registro per sempre: lì si cerca la sua àncora.
+  Quando si rimisura il sito (regola sopra), contare anche **di che sito** sono le notizie di
+  home, conteggio e `/page/1/` (`scratchpad/diag-hdmotori-page1.ps1`).
 - Sulle **pagine archivio** il feed è storico, non attuale: "la più recente" è `pending_<id>`
   (scritto sulla home), MAI `feed[0]` della pagina — usarlo manderebbe il segnalibro
   all'indietro. Stessa ragione per cui il conteggio non si ricalcola lì ma si legge da

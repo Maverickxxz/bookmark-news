@@ -76,6 +76,12 @@
  *                     idOrdered (opzionale) true se l'id numerico della notizia
  *                               (idPrefix + cifre) cresce con la data: permette di
  *                               accorgersi che la ricerca ha superato il segnalibro
+ *                     idOnly    (opzionale) true se l'archivio elenca SOLO le notizie
+ *                               con un id da idRegex, mentre la home mostra anche
+ *                               notizie di altri siti (hdblog: quelle di hdmotori).
+ *                               Un segnalibro caduto su una di quelle si cerca
+ *                               nell'archivio tramite la sua "àncora", la prima
+ *                               notizia con id subito sotto di lui
  *                     maxPages  tetto di pagine esplorate in automatico (default 40)
  *                     countTemplate (opzionale) URL alternativo da usare SOLO per il
  *                               conteggio, con {n} al posto del numero di pagina: serve
@@ -157,6 +163,11 @@ const NEWS_SITES = [
       // una pagina fatta quasi tutta di id più bassi del segnalibro è già
       // oltre, e la ricerca si ferma invece di sfogliare fino a maxPages.
       idOrdered: true,
+      // Da ottobre 2026 le /page/N/ NON elencano più le notizie di hdmotori, che
+      // nella home e nel conteggio sono ~1 su 5 (spesso proprio la prima): un
+      // segnalibro hdmotori si cerca tramite la sua àncora, e le posizioni per
+      // scegliere la pagina contano solo le notizie hdblog (bug #19).
+      idOnly: true,
       maxPages: 40,
       // Per CONTARE si usa invece l'endpoint ajax del lazy-load: stesso markup,
       // frammenti leggeri, e soprattutto scaricabile (le pagine navigabili no).
@@ -169,8 +180,10 @@ const NEWS_SITES = [
       // sito pubblica mentre si conta la sequenza scivola e le ultime notizie
       // si perdono per strada (è lo stesso difetto che genera i doppioni, vedi
       // v0.3.7). Una pagina sola basta e avanza: countMaxPages: 1.
-      // Se il segnalibro non è in quelle ~100 (exact=false, badge "100+") la
-      // ricerca sa già che è da pagina 2 in poi.
+      // Se il segnalibro non è in quelle ~100 (exact=false, badge "100+") può
+      // stare ancora in fondo a /page/1/: quelle 100 comprendono ~20 notizie
+      // hdmotori, la pagina 1 dell'archivio invece 100 notizie hdblog, che
+      // vanno più indietro nel tempo (vedi idOnly).
       countTemplate: "https://www.hdblog.it/new_files/ajax/pages.php?page={n}&b=10",
       countMaxPages: 1,
     },

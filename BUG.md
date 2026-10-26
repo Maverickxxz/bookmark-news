@@ -8,6 +8,54 @@ Le spiegazioni lunghe della logica stanno in `CLAUDE.md`; qui c'è solo la stori
 
 ---
 
+## #19 — Su hdblog il segnalibro "non si aggiorna più" e "Vai all'ultima letta" fatica a trovarlo
+**Versione:** 0.4.5 · **Data:** 26/10/2026 · **Sito:** hdblog · **Segnalato da:** utente
+
+- **Sintomo:** «delle volte fa fatica a trovare l'ultima notizia letta e devo refreshare la
+  pagina, inoltre non mi sta più aggiornando il segnalibro, ma rimane una notizia passata».
+- **Causa:** da ottobre 2026 l'archivio `/page/N/` di hdblog **non elenca più le notizie
+  hdmotori**, mentre la home e il conteggio (`pages.php`) le mostrano ancora: ~1 su 5, spesso
+  proprio la prima della home. Misurato in Chrome headless: home 20 notizie (4 hdmotori),
+  conteggio 100 (21 hdmotori), `/page/1/` 100 (**0** hdmotori). A settembre c'erano: nel registro
+  del 26/09 un segnalibro hdmotori veniva ancora trovato su `/page/1/`. Siccome `pending` = la
+  prima notizia della home, il segnalibro cadeva spesso su una notizia hdmotori; appena usciva
+  dalle 20 della home, "Vai all'ultima letta" andava su `/page/1/`, non la trovava e si fermava
+  ("oltre la posizione del segnalibro"). Senza trovarla non diventava mai **"raggiunto"**, quindi
+  ai caricamenti dopo il registro diceva "mai raggiunto (fermo)": segnalibro bloccato su una
+  notizia vecchia finché l'utente non la ritrovava a mano scrollando la home. Di contorno: le
+  posizioni per scegliere la pagina contavano anche le notizie hdmotori (il conteggio diceva 49,
+  su `/page/1/` la notizia era alla 40), e con un "100+" la ricerca saltava a `/page/2/` anche
+  quando il segnalibro era ancora in fondo alla 1.
+  Nel registro dell'utente i casi di oggi sono di un altro tipo (segnalibro hdblog alla
+  posizione 9 mai visto sullo schermo in una scheda aperta in background, quindi fermo per
+  scelta di progetto): il registro non diceva se l'utente fosse sceso fin lì, da qui la riga
+  "visita finita" (vedi sotto).
+- **Correzione:** `archive.idOnly: true` in `sites.js` (l'archivio elenca solo le notizie con id).
+  Il segnalibro resta la notizia vera, così il conteggio resta esatto, ma si porta dietro
+  un'**àncora d'archivio** (`anchor_<id>`, e `pendingAnchor_<id>` per pending): la prima notizia
+  hdblog subito sotto di lui, presa dal feed nel momento in cui diventa pending. Nell'archivio
+  `initArchive` cerca l'àncora al posto di un segnalibro non elencato, la evidenzia e la centra,
+  e "raggiunto" torna a scattare. Per i segnalibri di prima della v0.4.5 l'àncora la ricava il
+  conteggio dalla sequenza completa (`countUnreadInArchive` → `anchor`) e si salva. Il conteggio
+  restituisce anche `archivePos` (posizione contando solo le notizie elencate), usata per la
+  pagina di partenza e per lo stop della ricerca. Insieme: un articolo aperto mentre il sito
+  mostrava la verifica anti-bot veniva registrato col titolo "HDblog.it - Verifica Connessione"
+  (e "verifica connessione" fra le parole chiave); ora `trackArticle` salta le pagine di verifica
+  e il service worker ripara quelli già salvati alla prossima apertura. Nel registro diagnostico
+  una riga **"visita finita"** per ogni visita della home (raggiunto sì/no, scheda mai in primo
+  piano, scroll massimo, posizione del segnalibro).
+- **Verifica:** `scratchpad/test-hdmotori-anchor.ps1` (Chrome headless, vero `content.js`, 14
+  controlli: segnalibro hdmotori senza àncora → centrato su `/page/1/` tramite l'àncora e
+  "raggiunto"; registro che porta l'àncora da pending al marker; prima volta; segnalibro hdblog
+  invariato). Sul codice precedente lo stesso test fallisce con "ricerca FERMATA · oltre la
+  posizione del segnalibro", come nel guasto. `test-live-seek.ps1` 7/7 ok (aggiornato il caso
+  hdmotori, che cercava una notizia hdmotori in `/page/2/` dove ormai non ce ne sono),
+  `test-challenge-seek.ps1` 3/3, `test-count-retry.ps1` 2/2. Esclusa l'ipotesi "centratura che
+  scivola via mentre la pagina finisce di caricare": `scratchpad/test-center-drift.ps1` misura la
+  notizia ferma nel viewport per 19 secondi. Diagnostica del sito: `scratchpad/diag-hdmotori-page1.ps1`.
+
+---
+
 ## #18 — Su hdblog, alla prima ricerca della giornata, "Vai all'ultima letta" non arrivava alla notizia; dopo un refresh sì
 **Versione:** 0.4.4 · **Data:** 26/09/2026 · **Sito:** hdblog · **Segnalato da:** utente
 

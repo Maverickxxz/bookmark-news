@@ -13,6 +13,20 @@ function setLocal(o) {
 // Coda per serializzare le scritture del tracciamento.
 let trackChain = Promise.resolve();
 
+// Titolo della pagina di verifica anti-bot (stesso criterio di isChallengePage
+// in content.js): un articolo salvato con questo titolo va riparato.
+const CHALLENGE_TITLE_RE = /verifica connessione|just a moment|attendere prego/i;
+
+// Come in options.js (deleteEntry): decrementa un aggregato, togliendolo a zero.
+function decCount(map, name) {
+  if (!name) return;
+  const k = String(name).toLowerCase();
+  if (map[k]) {
+    map[k] -= 1;
+    if (map[k] <= 0) delete map[k];
+  }
+}
+
 // Identità stabile di un articolo nella lista: sito + chiave.
 function entryId(e) {
   return (e && e.s ? e.s : "") + "|" + (e && e.k ? e.k : "");
@@ -34,7 +48,18 @@ async function doTrack(entry) {
   // SENZA ricontare categoria/parole chiave — altrimenti riaprendo la stessa notizia
   // la lista mostrerebbe doppioni e i conteggi si gonfierebbero.
   const id = entryId(entry);
-  const existing = interests.opened.find((e) => entryId(e) === id);
+  let existing = interests.opened.find((e) => entryId(e) === id);
+  // Riparazione: un articolo registrato dalla pagina di verifica anti-bot del
+  // sito (titolo "… Verifica Connessione", prima della v0.4.5) si sostituisce
+  // con la versione vera alla prossima apertura, togliendo dagli aggregati la
+  // categoria e le parole chiave sbagliate.
+  if (existing && CHALLENGE_TITLE_RE.test(existing.t || "")) {
+    decCount(interests.categories, existing.c);
+    (existing.kw || []).forEach((k) => decCount(interests.keywords, k));
+    interests.opened = interests.opened.filter((e) => e !== existing);
+    interests.totalOpened = Math.max(0, (interests.totalOpened || 0) - 1);
+    existing = null;
+  }
   if (existing) {
     if ((entry.ts || 0) > (existing.ts || 0)) existing.ts = entry.ts;
     await setLocal({ interests });

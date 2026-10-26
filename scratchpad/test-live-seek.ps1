@@ -45,7 +45,18 @@ $all = $pages[1] + $pages[2] + $pages[3]
 $missing = 670699
 $hi = ($pages[2] | Where-Object { $_ -match '^n\d+$' } | ForEach-Object { [int]$_.Substring(1) } | Measure-Object -Maximum).Maximum
 $missing = $hi - 3; while ($all -contains "n$missing") { $missing-- }
-$hdm = $pages[2] | Where-Object { $_ -like 'www.hdmotori*' } | Select-Object -First 1
+# Notizia hdmotori FUORI dalla home: da ottobre 2026 le /page/N/ non ne elencano
+# più (bug #19), quindi si prende dalla sequenza del conteggio (pages.php), oltre
+# le 20 notizie della home. La ricerca deve trovarla su /page/1/ tramite l'àncora.
+Cdp-Navigate "https://www.hdblog.it/" 6000
+$seq = Cdp-Eval @"
+fetch('/new_files/ajax/pages.php?page=1&b=10', { cache: 'no-store' }).then(r => r.text()).then(t =>
+  JSON.stringify([...new DOMParser().parseFromString(t, 'text/html').querySelectorAll('article.newlist_normal a.title_new[href]')]
+    .map(l => { const u = new URL(l.getAttribute('href'), location.href); const m = u.pathname.match(/\/n(\d+)\//);
+      return m ? 'n' + m[1] : (u.host + u.pathname.replace(/\/+$/, '')).toLowerCase(); })))
+"@ | ConvertFrom-Json
+$hdm = $seq | Select-Object -Skip 25 | Where-Object { $_ -like 'www.hdmotori*' } | Select-Object -First 1
+"hdmotori fuori dalla home: $hdm"
 
 $cases = @(
   @{ name = "home, 6a notizia (gia in pagina)"; marker = $pages[1][5];  url = "https://www.hdblog.it/";        found = $true },
@@ -53,7 +64,7 @@ $cases = @(
   @{ name = "home, 71a (oltre il muro rotto)"; marker = $pages[1][70]; url = "https://www.hdblog.it/page/1/"; found = $true },
   @{ name = "pagina 2 (~150a)";                marker = $pages[2][50]; url = "https://www.hdblog.it/page/2/"; found = $true },
   @{ name = "pagina 3 (~240a)";                marker = $pages[3][40]; url = "https://www.hdblog.it/page/3/"; found = $true },
-  @{ name = "hdmotori in pagina 2";            marker = $hdm;          url = "https://www.hdblog.it/page/2/"; found = $true },
+  @{ name = "hdmotori fuori dalla home";       marker = $hdm;          url = "https://www.hdblog.it/page/1/"; found = $true },
   @{ name = "non elencato (n$missing)";        marker = "n$missing";   url = $null;                          found = $false }
 )
 

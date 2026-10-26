@@ -93,7 +93,7 @@
     navigator.onLine
   );
 
-  let state = { markerKey: null };
+  let state = { markerKey: null, anchorKey: null };
   let lastStatus = { onHome: false, siteName: site ? site.name : null };
 
   // Chiavi di storage separate per ogni sito.
@@ -106,6 +106,9 @@
         seek: "seek_" + site.id,
         count: "count_" + site.id,
         rescroll: "rescroll_" + site.id,
+        // Àncore d'archivio di marker e pending, vedi archiveAnchorIn.
+        anchor: "anchor_" + site.id,
+        pendingAnchor: "pendingAnchor_" + site.id,
       }
     : null;
 
@@ -718,6 +721,14 @@
   function trackArticle() {
     const key = articleKey(location.href);
     if (!key) return;
+    // Anche gli articoli di hdblog possono arrivare come verifica anti-bot
+    // (vedi isChallengePage): registrarla salverebbe "HDblog.it - Verifica
+    // Connessione" come titolo e "verifica connessione" fra le parole chiave.
+    // La verifica poi ricarica la pagina vera, che si registra normalmente.
+    if (isChallengePage()) {
+      dbg("articolo NON registrato: pagina di verifica anti-bot ·", document.title);
+      return;
+    }
     const h1 = document.querySelector("h1");
     const title = ((h1 && h1.textContent) || document.title || "").trim();
     const entry = {
@@ -1224,6 +1235,40 @@
     return true;
   }
 
+  // Id numerico di una chiave fatta da idRegex (idPrefix + cifre, es. n674822);
+  // NaN per le chiavi host+percorso (es. le notizie hdmotori nella home di hdblog).
+  const idKeyRe = new RegExp(
+    "^" + String((site && site.idPrefix) || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(\\d+)$"
+  );
+  function idNum(key) {
+    const m = String(key || "").match(idKeyRe);
+    return m ? parseInt(m[1], 10) : NaN;
+  }
+
+  // L'archivio elenca questa notizia? Sì, salvo archive.idOnly: le /page/N/ di
+  // hdblog da ottobre 2026 elencano SOLO le notizie hdblog (id nXXXXXX), mentre
+  // la home e il conteggio (pages.php) mostrano anche quelle di hdmotori, ~1 su
+  // 5 e spesso proprio in cima. Un segnalibro caduto su una di quelle non
+  // compariva mai nell'archivio: ricerca a vuoto, mai "raggiunto", segnalibro
+  // fermo per sempre (bug #19).
+  function archiveListsKey(key) {
+    if (!site.archive || !site.archive.idOnly) return true;
+    return idNum(key) > 0;
+  }
+
+  // Àncora d'archivio = la prima notizia, dalla posizione `from` in giù, che
+  // l'archivio elenca. Per un segnalibro elencato è il segnalibro stesso; per
+  // uno hdmotori è la notizia hdblog subito SOTTO di lui (più vecchia, quindi
+  // già letta): nell'archivio sta esattamente dove starebbe lui, e tutto quel
+  // che le sta sopra è nuovo. Il segnalibro resta la notizia vera, così il
+  // conteggio delle non lette (che vede anche hdmotori) resta esatto: l'àncora
+  // serve solo a CERCARLO dove lui non c'è.
+  function archiveAnchorIn(feed, from) {
+    for (let i = Math.max(0, from | 0); i < feed.length; i++)
+      if (archiveListsKey(feed[i].key)) return feed[i].key;
+    return null;
+  }
+
   // Seconda prova che la ricerca è andata OLTRE il segnalibro, indipendente dal
   // conteggio: sui siti dove l'id numerico cresce con la data di pubblicazione
   // (archive.idOrdered — hdblog: nXXXXXX) una pagina fatta quasi tutta di id
@@ -1236,16 +1281,9 @@
   // elenca più faceva sfogliare l'archivio fino al tetto di 40 pagine.
   function pageOlderThanMarker(feed, markerKey) {
     if (!site.archive || !site.archive.idOrdered) return false;
-    const re = new RegExp(
-      "^" + String(site.idPrefix || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(\\d+)$"
-    );
-    const num = (k) => {
-      const m = String(k || "").match(re);
-      return m ? parseInt(m[1], 10) : NaN;
-    };
-    const mk = num(markerKey);
+    const mk = idNum(markerKey);
     if (!(mk > 0)) return false;
-    const ids = feed.map((a) => num(a.key)).filter((n) => n > 0);
+    const ids = feed.map((a) => idNum(a.key)).filter((n) => n > 0);
     if (ids.length < 10) return false;
     const older = ids.filter((n) => n < mk).length;
     return older / ids.length >= 0.9;
@@ -1297,9 +1335,28 @@
       frozen: !!(settings && settings.freezeMarker),
     };
 
-    const store = await getStore([K.marker, K.seek, "status_" + site.id]);
+    const store = await getStore([
+      K.marker,
+      K.anchor,
+      K.count,
+      K.seek,
+      "status_" + site.id,
+    ]);
     const marker = store[K.marker];
     const seek = store[K.seek];
+    // Cosa cercare in QUESTA pagina: il segnalibro se l'archivio lo elenca,
+    // altrimenti la sua àncora (vedi archiveAnchorIn). Senza àncora salvata
+    // (segnalibri di prima della v0.4.5) la si prende dal conteggio, che la
+    // ricava dalla sequenza completa della home.
+    let anchor = null;
+    if (marker && !archiveListsKey(marker)) {
+      const cnt = store[K.count];
+      anchor =
+        store[K.anchor] ||
+        (cnt && cnt.marker === marker && cnt.anchor) ||
+        null;
+    }
+    const lookKey = anchor || marker;
 
     // Le "non lette" si contano sulla HOME (qui il feed è un pezzo di archivio, non
     // il feed corrente): riusiamo l'ultimo stato noto della home, cioè lo stesso
@@ -1320,7 +1377,11 @@
       Date.now() - seek.ts < SEEK_TTL_MS
     );
     dbg(
-      "archivio: pagina", page, "· segnalibro", marker, "· flag ricerca", seek || null,
+      "archivio: pagina", page, "· segnalibro", marker,
+      marker && !archiveListsKey(marker)
+        ? "(non elencato dall'archivio · àncora " + (anchor || "SCONOSCIUTA") + ")"
+        : "",
+      "· flag ricerca", seek || null,
       "· ricerca attiva", seeking,
       seekHere && !seeking ? "(SCADUTA: TTL " + SEEK_TTL_MS / 60000 + " min)" : ""
     );
@@ -1353,11 +1414,11 @@
         );
       return;
     }
-    let idx = feed.findIndex((a) => a.key === marker);
+    let idx = feed.findIndex((a) => a.key === lookKey);
     dbg(
       "archivio: pagina", page, "·", feed.length, "notizie ·",
       feed.length ? "dalla " + feed[0].key + " alla " + feed[feed.length - 1].key : "(vuota)",
-      "· segnalibro in posizione", idx
+      "· " + (anchor ? "àncora" : "segnalibro") + " in posizione", idx
     );
 
     // Pagine d'archivio LAZY (fatte con lo stesso stampo della home: le prime
@@ -1374,18 +1435,21 @@
     if (idx < 0 && seeking && !archiveIsStatic()) {
       seekCancelled = false;
       showSeekToast("Cerco l'ultima letta… pagina " + page);
-      feed = await growFeedByScrolling(marker, (f) => {
+      feed = await growFeedByScrolling(lookKey, (f) => {
         showSeekToast(
           "Cerco l'ultima letta… pagina " + page + ", " + f.length + " notizie"
         );
       });
-      idx = feed.findIndex((a) => a.key === marker);
+      idx = feed.findIndex((a) => a.key === lookKey);
       cancelled = seekCancelled; // × del toast: la ricerca finisce qui
     }
     lastStatus.total = feed.length;
 
     if (idx >= 0) {
-      dbg("archivio: segnalibro TROVATO a pagina", page, "posizione", idx);
+      dbg(
+        "archivio: segnalibro TROVATO a pagina", page, "posizione", idx,
+        anchor ? "(tramite l'àncora " + anchor + ")" : ""
+      );
       // Trovata: evidenzia (e chiudi l'eventuale ricerca in corso).
       if (seek) await removeStore(K.seek);
       markElement(feed[idx].el);
@@ -1431,11 +1495,11 @@
     const scanned = (seek.scanned | 0) + feed.length;
     const overshot =
       (typeof seek.target === "number" && scanned > seek.target + 30) ||
-      pageOlderThanMarker(feed, marker);
+      pageOlderThanMarker(feed, lookKey);
 
     dbg(
       "archivio: esaminate", scanned, "· posizione attesa", seek.target,
-      "· pagina più vecchia del segnalibro", pageOlderThanMarker(feed, marker),
+      "· pagina più vecchia del segnalibro", pageOlderThanMarker(feed, lookKey),
       "· oltre", overshot
     );
     if (!feed.length || overshot || page >= archiveMaxPages()) {
@@ -1529,16 +1593,37 @@
     }
   }
 
+  // Oltre al numero di non lette (count, su TUTTE le notizie della sequenza)
+  // restituisce archivePos = la posizione del segnalibro contando solo le
+  // notizie che l'archivio elenca (archive.idOnly: su hdblog le /page/N/ non
+  // hanno quelle di hdmotori), cioè la posizione che serve per scegliere la
+  // pagina d'archivio e sapere quando smettere; e anchor = la sua àncora
+  // d'archivio, presa dalla sequenza (vedi archiveAnchorIn).
   async function countUnreadInArchive(markerKey) {
     const seen = new Set();
     let count = 0;
+    let listed = 0; // notizie contate che l'archivio elenca
+    let found = false; // segnalibro trovato, si cerca ancora l'àncora sotto di lui
     // Tetto per sito: le pagine hanno dimensioni diverse (hwupgrade ~30
     // notizie, hdblog ~9-10) e il default coprirebbe troppo poco.
     const maxPages = site.archive.countMaxPages || COUNT_MAX_PAGES;
+    const done = (anchor) => {
+      dbg(
+        "conteggio: segnalibro", markerKey, "trovato in posizione", count,
+        "(esatto) · nell'archivio", listed,
+        anchor === markerKey ? "" : "· àncora " + (anchor || "non trovata")
+      );
+      return { count: count, exact: true, archivePos: listed, anchor: anchor };
+    };
     // Quel che abbiamo già contato quando la sequenza si interrompe (rete,
     // markup, fine dell'archivio) è comunque un limite inferiore valido: meglio
     // "90+" che ricadere sul numero di notizie caricate in pagina.
-    const partial = () => (count > 0 ? { count: count, exact: false } : null);
+    const partial = () =>
+      found
+        ? done(null)
+        : count > 0
+        ? { count: count, exact: false, archivePos: listed }
+        : null;
     for (let page = 1; page <= maxPages; page++) {
       const url = countUrlFor(page);
       const doc = await fetchFeedDoc(url);
@@ -1562,18 +1647,22 @@
         // Le pagine possono sovrapporsi (il feed scorre tra un fetch e l'altro).
         if (seen.has(a.key)) continue;
         seen.add(a.key);
-        if (a.key === markerKey) {
-          dbg("conteggio: segnalibro", markerKey, "trovato in posizione", count, "(esatto)");
-          return { count: count, exact: true };
+        if (a.key === markerKey) found = true;
+        if (found) {
+          if (archiveListsKey(a.key)) return done(a.key);
+          continue;
         }
         count++;
+        if (archiveListsKey(a.key)) listed++;
       }
     }
+    if (found) return done(null); // àncora oltre la fine della sequenza scaricata
     dbg(
       "conteggio: segnalibro", markerKey, "NON trovato fra", count,
       "notizie (tetto", maxPages, "pagine): limite inferiore"
     );
-    return { count: count, exact: false }; // marker oltre il tetto: limite inferiore
+    // marker oltre il tetto: limite inferiore
+    return { count: count, exact: false, archivePos: listed };
   }
 
   async function countOnce(markerKey, newestKey) {
@@ -1593,7 +1682,12 @@
           cached.exact ? "(esatto)" : "(limite inferiore)",
           "· età", Math.round((Date.now() - cached.ts) / 1000), "s"
         );
-        return { count: cached.count, exact: !!cached.exact };
+        return {
+          count: cached.count,
+          exact: !!cached.exact,
+          archivePos: cached.archivePos,
+          anchor: cached.anchor,
+        };
       }
       const res = await countUnreadInArchive(markerKey);
       if (res) {
@@ -1603,6 +1697,8 @@
             newest: newestKey,
             count: res.count,
             exact: res.exact,
+            archivePos: res.archivePos,
+            anchor: res.anchor || null,
             ts: Date.now(),
           },
         });
@@ -1659,7 +1755,16 @@
     else
       dbg("conteggio: FALLITO dopo tutti i tentativi · resta il limite inferiore del feed in pagina");
     // Il marker può essere cambiato nel frattempo: in quel caso l'esito non vale più.
-    if (res && state.markerKey === markerKey) refined = res;
+    if (res && state.markerKey === markerKey) {
+      refined = res;
+      // Segnalibro non elencato dall'archivio e senza àncora salvata (era di
+      // prima della v0.4.5): quella trovata nella sequenza vale da qui in poi.
+      if (res.anchor && !state.anchorKey && !archiveListsKey(markerKey)) {
+        state.anchorKey = res.anchor;
+        setStore({ [K.anchor]: res.anchor });
+        dbg("conteggio: àncora d'archivio salvata ·", res.anchor);
+      }
+    }
     refining = false;
     applyHighlight(); // ri-applica col numero esatto (o sblocca il toast col fallback)
   }
@@ -1688,10 +1793,23 @@
     }
   }
 
-  // Posizione del segnalibro nella sequenza del sito, se la conosciamo con
-  // esattezza (= quante notizie non lette): null se è solo un limite inferiore.
+  // Posizione del segnalibro nella sequenza dell'archivio, se la conosciamo con
+  // esattezza: null se è solo un limite inferiore. Conta solo le notizie che l'archivio elenca (refined.archivePos): su hdblog
+  // le /page/N/ non hanno quelle di hdmotori, quindi lì il segnalibro sta più in
+  // alto di quanto dica il numero di non lette — fino a ~20 posizioni su 100, e
+  // con perPage 100 vuol dire scegliere la pagina sbagliata (bug #19). Il
+  // ripiego sull'ultimo stato della home può solo sovrastimare: per `target`
+  // vuol dire fermarsi un po' più tardi, mai prima.
+  function refinedArchivePos() {
+    return refined && typeof refined.archivePos === "number"
+      ? refined.archivePos
+      : refined
+      ? refined.count
+      : null;
+  }
+
   function exactMarkerIndex() {
-    if (refined) return refined.exact ? refined.count : null;
+    if (refined) return refined.exact ? refinedArchivePos() : null;
     if (lastStatus && lastStatus.archive && !lastStatus.approx && lastStatus.unread > 0)
       return lastStatus.unread;
     return null;
@@ -1704,7 +1822,7 @@
   // minimo garantito. Un limite inferiore non fa mai saltare il segnalibro:
   // le posizioni col tempo possono solo crescere.
   function markerPositionLowerBound() {
-    if (refined) return refined.count;
+    if (refined) return refinedArchivePos();
     if (lastStatus && lastStatus.onHome && lastStatus.unread > 0)
       return lastStatus.unread;
     return null;
@@ -1918,23 +2036,30 @@
     // usarla sposterebbe il segnalibro all'INDIETRO, gonfiando le non lette. La più
     // recente vera è quella registrata all'ultimo caricamento della home (pending).
     let newest = null;
+    let anchor = null;
     if (onArchive) {
-      const store = await getStore([K.pending, K.marker]);
+      const store = await getStore([K.pending, K.pendingAnchor, K.marker]);
       newest = store[K.pending] || store[K.marker] || null;
+      anchor = store[K.pending] ? store[K.pendingAnchor] || null : null;
     } else {
       const feed = getFeedArticles();
       newest = feed.length ? feed[0].key : null;
+      anchor = archiveAnchorIn(feed, 0);
     }
+    if (newest && archiveListsKey(newest)) anchor = newest;
     dbg("segna tutte come lette · archivio", onArchive, "· nuovo segnalibro", newest, "· era", state.markerKey);
     if (!newest) return lastStatus;
 
     state.markerKey = newest;
+    state.anchorKey = anchor;
     refined = null; // l'eventuale conteggio dall'archivio riguardava il vecchio marker
     refining = false;
     reachedThisVisit = true; // sei in pari per definizione
     await setStore({
       [K.marker]: newest,
       [K.pending]: newest,
+      [K.anchor]: anchor,
+      [K.pendingAnchor]: anchor,
       [K.init]: true,
       [K.reached]: true,
     });
@@ -2186,6 +2311,37 @@
 
   // -------- avvio --------
 
+  // Fine visita della home nel registro: se al caricamento dopo il registro dice
+  // "mai raggiunto (fermo)", questa riga dice perché — la scheda non è mai stata
+  // in primo piano, non si è mai scesi fino al segnalibro, o ci si è passati
+  // sopra senza che l'osservatore scattasse (un guasto, quello).
+  function logVisitEnd() {
+    let maxY = 0;
+    let everVisible = document.visibilityState === "visible";
+    window.addEventListener(
+      "scroll",
+      () => {
+        if (scrollY > maxY) maxY = scrollY;
+      },
+      { passive: true }
+    );
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") everVisible = true;
+    });
+    window.addEventListener("pagehide", () => {
+      const m = document.querySelector(".hdb-marker");
+      const mTop = m ? Math.round(m.getBoundingClientRect().top + scrollY) : null;
+      dbg(
+        "visita finita · segnalibro raggiunto", reachedThisVisit,
+        "· scheda mai in primo piano", !everVisible,
+        "· scroll massimo", Math.round(maxY + innerHeight), "px",
+        "· segnalibro in pagina a", mTop === null ? "(assente)" : mTop + " px",
+        "· feed", getFeedArticles().length
+      );
+      dbgFlush();
+    });
+  }
+
   async function init() {
     if (!site) {
       lastStatus = { onHome: false, siteName: null };
@@ -2274,6 +2430,8 @@
       K.init,
       K.reached,
       K.rescroll,
+      K.anchor,
+      K.pendingAnchor,
     ]);
 
     // Migrazione dal formato v1 (solo hdblog, chiavi senza suffisso).
@@ -2329,6 +2487,26 @@
     }
 
     const markerIdx = feed.findIndex((a) => a.key === marker);
+
+    // Àncore d'archivio (vedi archiveAnchorIn): viaggiano insieme al loro
+    // segnalibro. Quella di pending si prende ADESSO, dal feed in cui pending è
+    // la prima notizia: quando pending diventerà il marker, magari fra giorni e
+    // ormai fuori dalla home, sapremo comunque cosa cercare nell'archivio.
+    const pendingAnchor = sameVisit
+      ? store[K.pendingAnchor] || null
+      : archiveAnchorIn(feed, 0);
+    let anchor =
+      marker === store[K.marker]
+        ? store[K.anchor]
+        : marker === store[K.pending]
+        ? store[K.pendingAnchor]
+        : marker === currentNewest
+        ? archiveAnchorIn(feed, 0)
+        : null;
+    if (archiveListsKey(marker)) anchor = marker;
+    else if (!anchor && markerIdx >= 0) anchor = archiveAnchorIn(feed, markerIdx);
+    anchor = anchor || null;
+
     dbg(
       "registro:",
       !store[K.init]
@@ -2342,12 +2520,16 @@
         : "mai raggiunto (fermo)",
       "· prima: marker", store[K.marker], "pending", store[K.pending], "reached", store[K.reached],
       "· dopo: marker", marker, "pending", pending,
-      "· segnalibro nel feed in posizione", markerIdx
+      "· segnalibro nel feed in posizione", markerIdx,
+      anchor !== marker ? "· àncora d'archivio " + (anchor || "SCONOSCIUTA") : "",
+      pendingAnchor !== pending ? "· àncora di pending " + (pendingAnchor || "SCONOSCIUTA") : ""
     );
 
     await setStore({
       [K.marker]: marker,
       [K.pending]: pending,
+      [K.anchor]: anchor,
+      [K.pendingAnchor]: pendingAnchor,
       [K.init]: true,
       // Se la visita continua (refresh automatico o "Ricarica pulita") il
       // "raggiunto" NON si azzera, altrimenti il ricaricamento cancellerebbe anche
@@ -2356,6 +2538,7 @@
       [K.reached]: sameVisit ? !!store[K.reached] : false,
     });
     state.markerKey = marker;
+    state.anchorKey = anchor;
     state.newestKey = currentNewest;
     // Coerente con lo storage: se il segnalibro era già stato raggiunto prima del
     // ricaricamento, non serve rimettersi a osservarlo.
@@ -2371,6 +2554,7 @@
     applyHighlight();
     lastSig = currentSig();
     startFeedWatch();
+    logVisitEnd();
 
     // Veniamo da "Ricarica pulita": riportiamo l'utente dov'era. Il flag si
     // consuma SEMPRE (anche scaduto o su un caricamento qualsiasi), così non

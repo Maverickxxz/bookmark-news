@@ -1,0 +1,406 @@
+Segnalibro notizie 0.4.4 · Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36 · esportato Mon Oct 26 2026 15:01:17 GMT+0100 (Ora standard dell’Europa centrale)
+
+tab 2097895040 16:40:06.713 +0.0s [hdblog /] content script attivo: hdblog · url https://www.hdblog.it/ · visibile visible · online true
+tab 2097895040 16:40:06.715 +0.0s [hdblog /] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home true · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097895040 16:40:06.715 +0.0s [hdblog /] home: feed 20 notizie · 20 nodi · dalla n671489 alla n671440 · readyState interactive
+tab 2097895040 16:40:06.715 +0.0s [hdblog /] registro: raggiunto → AVANZA · prima: marker n671329 pending n671416 reached true · dopo: marker n671416 pending n671489 · segnalibro nel feed in posizione -1
+tab 2097895040 16:40:06.716 +0.0s [hdblog /] conteggio: avvio · segnalibro n671416 · più recente n671489
+tab 2097895040 16:40:06.716 +0.0s [hdblog /] stato: non lette 20+ · segnalibro in pagina false  · feed 20 · doppioni nascosti 0 · fonte feed (conteggio in corso)
+tab 2097895041 16:40:06.472 +0.0s [hwupgrade /] content script attivo: hwupgrade · url https://www.hwupgrade.it/ · visibile hidden · online true
+tab 2097895041 16:40:06.474 +0.0s [hwupgrade /] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home true · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097895041 16:40:06.475 +0.0s [hwupgrade /] home: feed 42 notizie · 42 nodi · dalla 159654 alla 159624 · readyState interactive
+tab 2097895041 16:40:06.475 +0.0s [hwupgrade /] registro: mai raggiunto (fermo) · prima: marker 159584 pending 159628 reached false · dopo: marker 159584 pending 159654 · segnalibro nel feed in posizione -1
+tab 2097895041 16:40:06.476 +0.0s [hwupgrade /] conteggio: avvio · segnalibro 159584 · più recente 159654
+tab 2097895041 16:40:06.476 +0.0s [hwupgrade /] stato: non lette 42+ · segnalibro in pagina false  · feed 42 · doppioni nascosti 0 · fonte feed (conteggio in corso)
+tab 2097895041 16:40:07.082 +0.6s [hwupgrade /] conteggio: HTTP 200 · 163971 caratteri in 605 ms · https://www.hwupgrade.it/news/index.html
+tab 2097895041 16:40:07.084 +0.6s [hwupgrade /] conteggio: pagina 1 · 30 notizie (0 doppioni) · dalla 159654 alla 159407
+tab 2097895040 16:40:07.194 +0.5s [hdblog /] conteggio: HTTP 200 · 181895 caratteri in 477 ms · https://www.hdblog.it/new_files/ajax/pages.php?page=1&b=10
+tab 2097895040 16:40:07.196 +0.5s [hdblog /] conteggio: pagina 1 · 100 notizie (0 doppioni) · dalla n671489 alla n671342
+tab 2097895040 16:40:07.197 +0.5s [hdblog /] conteggio: segnalibro n671416 trovato in posizione 55 (esatto)
+tab 2097895040 16:40:07.197 +0.5s [hdblog /] conteggio: esito 55 (esatto)
+tab 2097895040 16:40:07.197 +0.5s [hdblog /] stato: non lette 55 · segnalibro in pagina false  · feed 20 · doppioni nascosti 0 · fonte conteggio
+tab 2097895041 16:40:07.380 +0.9s [hwupgrade /] conteggio: HTTP 200 · 163513 caratteri in 296 ms · https://www.hwupgrade.it/news/index2.html
+tab 2097895041 16:40:07.382 +0.9s [hwupgrade /] conteggio: pagina 2 · 30 notizie (0 doppioni) · dalla 159606 alla 159595
+tab 2097895041 16:40:07.636 +1.2s [hwupgrade /] conteggio: HTTP 200 · 163657 caratteri in 254 ms · https://www.hwupgrade.it/news/index3.html
+tab 2097895041 16:40:07.638 +1.2s [hwupgrade /] conteggio: pagina 3 · 30 notizie (0 doppioni) · dalla 159591 alla 159572
+tab 2097895041 16:40:07.638 +1.2s [hwupgrade /] conteggio: segnalibro 159584 trovato in posizione 71 (esatto)
+tab 2097895041 16:40:07.639 +1.2s [hwupgrade /] conteggio: esito 71 (esatto)
+tab 2097895041 16:40:07.639 +1.2s [hwupgrade /] stato: non lette 71 · segnalibro in pagina false  · feed 42 · doppioni nascosti 0 · fonte conteggio
+tab 2097895040 16:40:09.546 +2.8s [hdblog /] ricerca: avvio · segnalibro n671416 · già in pagina false · feed 20 · pagina archivio null · conteggio {"count":55,"exact":true} · conteggio in corso false
+tab 2097895040 16:40:09.547 +2.8s [hdblog /] ricerca: strada · noScrollSeek → attesa feed, poi archivio
+tab 2097895040 16:40:11.073 +4.4s [hdblog /] ricerca: feed assestato · 20 notizie · segnalibro in pagina false
+tab 2097895040 16:40:11.073 +4.4s [hdblog /] ricerca: non in pagina → archivio da pagina 1 · posizione minima nota 55 · posizione esatta 55
+tab 2097895040 16:40:11.073 +4.4s [hdblog /] archivio: vado a https://www.hdblog.it/page/1/ · flag {"page":1,"ts":1790260811073,"scanned":0,"target":55}
+tab 2097895040 16:40:11.073 +4.4s [hdblog /] ricerca: fine sulla pagina · esito true
+tab 2097895040 16:40:11.578 +0.0s [hdblog /page/1/] content script attivo: hdblog · url https://www.hdblog.it/page/1/ · visibile visible · online true
+tab 2097895040 16:40:11.578 +0.0s [hdblog /page/1/] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097895040 16:40:11.580 +0.0s [hdblog /page/1/] archivio: pagina 1 · segnalibro n671416 · flag ricerca {"page":1,"scanned":0,"target":55,"ts":1790260811073} · ricerca attiva true 
+tab 2097895040 16:40:11.580 +0.0s [hdblog /page/1/] archivio: pagina 1 · 100 notizie · dalla n671489 alla n671342 · segnalibro in posizione 55
+tab 2097895040 16:40:11.580 +0.0s [hdblog /page/1/] archivio: segnalibro TROVATO a pagina 1 posizione 55
+tab 2097895040 16:40:11.591 +0.0s [hdblog /page/1/] segnalibro RAGGIUNTO (visto sullo schermo): al prossimo caricamento avanza
+tab 2097895042 16:45:14.261 +0.0s [hdblog /hardware/articoli/n671439/logitech-g-pro-nuovi-prodotti-gaming-esport/] content script attivo: hdblog · url https://www.hdblog.it/hardware/articoli/n671439/logitech-g-pro-nuovi-prodotti-gaming-esport/ · visibile hidden · online true
+tab 2097895042 16:45:14.263 +0.0s [hdblog /hardware/articoli/n671439/logitech-g-pro-nuovi-prodotti-gaming-esport/] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097895042 16:45:14.264 +0.0s [hdblog /hardware/articoli/n671439/logitech-g-pro-nuovi-prodotti-gaming-esport/] articolo registrato: hdblog n671439 · Logitech G Pro, arrivano quattro nuove perife
+tab 2097895043 16:45:17.602 +0.0s [hdblog /sony/articoli/n671426/sony-sondaggio-sviluppatori-digitale/] content script attivo: hdblog · url https://www.hdblog.it/sony/articoli/n671426/sony-sondaggio-sviluppatori-digitale/ · visibile hidden · online true
+tab 2097895043 16:45:17.604 +0.0s [hdblog /sony/articoli/n671426/sony-sondaggio-sviluppatori-digitale/] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097895043 16:45:17.605 +0.0s [hdblog /sony/articoli/n671426/sony-sondaggio-sviluppatori-digitale/] articolo registrato: hdblog n671426 · Sony ci ripensa all'addio al formato fisico? 
+tab 2097895044 16:45:57.283 +0.0s [hdblog /tim/articoli/n671440/tim-risarcimento-notaio-bologna/] content script attivo: hdblog · url https://www.hdblog.it/tim/articoli/n671440/tim-risarcimento-notaio-bologna/ · visibile hidden · online true
+tab 2097895044 16:45:57.285 +0.0s [hdblog /tim/articoli/n671440/tim-risarcimento-notaio-bologna/] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097895044 16:45:57.286 +0.0s [hdblog /tim/articoli/n671440/tim-risarcimento-notaio-bologna/] articolo registrato: hdblog n671440 · Tim dovrà risarcire un notaio di Bologna: ute
+tab 2097895045 16:46:05.472 +0.0s [hdblog /google/articoli/n671460/gemini-4-uscita-google-entusiasta/] content script attivo: hdblog · url https://www.hdblog.it/google/articoli/n671460/gemini-4-uscita-google-entusiasta/ · visibile hidden · online true
+tab 2097895045 16:46:05.474 +0.0s [hdblog /google/articoli/n671460/gemini-4-uscita-google-entusiasta/] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097895045 16:46:05.475 +0.0s [hdblog /google/articoli/n671460/gemini-4-uscita-google-entusiasta/] articolo registrato: hdblog n671460 · Gemini 4 è dietro l'angolo: Google si dichiar
+tab 2097895041 16:51:59.676 +713.2s [hwupgrade /] ricerca: avvio · segnalibro 159584 · già in pagina false · feed 42 · pagina archivio null · conteggio {"count":71,"exact":true} · conteggio in corso false
+tab 2097895041 16:51:59.676 +713.2s [hwupgrade /] ricerca: strada · feed statico → archivio
+tab 2097895041 16:51:59.676 +713.2s [hwupgrade /] ricerca: non in pagina → archivio da pagina 1 · posizione minima nota 71 · posizione esatta 71
+tab 2097895041 16:51:59.678 +713.2s [hwupgrade /] archivio: vado a https://www.hwupgrade.it/news/index.html · flag {"page":1,"ts":1790261519676,"scanned":0,"target":71}
+tab 2097895041 16:51:59.678 +713.2s [hwupgrade /] ricerca: fine sulla pagina · esito true
+tab 2097895041 16:52:00.236 +0.0s [hwupgrade /news/index.html] content script attivo: hwupgrade · url https://www.hwupgrade.it/news/index.html · visibile visible · online true
+tab 2097895041 16:52:00.238 +0.0s [hwupgrade /news/index.html] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097895041 16:52:00.240 +0.0s [hwupgrade /news/index.html] archivio: pagina 1 · segnalibro 159584 · flag ricerca {"page":1,"scanned":0,"target":71,"ts":1790261519676} · ricerca attiva true 
+tab 2097895041 16:52:00.240 +0.0s [hwupgrade /news/index.html] archivio: pagina 1 · 30 notizie · dalla 159654 alla 159407 · segnalibro in posizione -1
+tab 2097895041 16:52:00.240 +0.0s [hwupgrade /news/index.html] archivio: esaminate 30 · posizione attesa 71 · pagina più vecchia del segnalibro false · oltre false
+tab 2097895041 16:52:00.244 +0.0s [hwupgrade /news/index.html] archivio: non è qui, vado a https://www.hwupgrade.it/news/index2.html · flag {"page":2,"ts":1790261519676,"scanned":30,"target":71}
+tab 2097895041 16:52:00.750 +0.0s [hwupgrade /news/index2.html] content script attivo: hwupgrade · url https://www.hwupgrade.it/news/index2.html · visibile visible · online true
+tab 2097895041 16:52:00.752 +0.0s [hwupgrade /news/index2.html] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097895041 16:52:00.752 +0.0s [hwupgrade /news/index2.html] archivio: pagina 2 · segnalibro 159584 · flag ricerca {"page":2,"scanned":30,"target":71,"ts":1790261519676} · ricerca attiva true 
+tab 2097895041 16:52:00.752 +0.0s [hwupgrade /news/index2.html] archivio: pagina 2 · 30 notizie · dalla 159606 alla 159595 · segnalibro in posizione -1
+tab 2097895041 16:52:00.752 +0.0s [hwupgrade /news/index2.html] archivio: esaminate 60 · posizione attesa 71 · pagina più vecchia del segnalibro false · oltre false
+tab 2097895041 16:52:00.753 +0.0s [hwupgrade /news/index2.html] archivio: non è qui, vado a https://www.hwupgrade.it/news/index3.html · flag {"page":3,"ts":1790261519676,"scanned":60,"target":71}
+tab 2097895041 16:52:01.111 +0.0s [hwupgrade /news/index3.html] content script attivo: hwupgrade · url https://www.hwupgrade.it/news/index3.html · visibile visible · online true
+tab 2097895041 16:52:01.112 +0.0s [hwupgrade /news/index3.html] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097895041 16:52:01.114 +0.0s [hwupgrade /news/index3.html] archivio: pagina 3 · segnalibro 159584 · flag ricerca {"page":3,"scanned":60,"target":71,"ts":1790261519676} · ricerca attiva true 
+tab 2097895041 16:52:01.114 +0.0s [hwupgrade /news/index3.html] archivio: pagina 3 · 30 notizie · dalla 159591 alla 159572 · segnalibro in posizione 11
+tab 2097895041 16:52:01.114 +0.0s [hwupgrade /news/index3.html] archivio: segnalibro TROVATO a pagina 3 posizione 11
+tab 2097895041 16:52:01.119 +0.0s [hwupgrade /news/index3.html] segnalibro RAGGIUNTO (visto sullo schermo): al prossimo caricamento avanza
+tab 2097895041 16:52:09.543 +0.0s [hwupgrade /news/index2.html] content script attivo: hwupgrade · url https://www.hwupgrade.it/news/index2.html · visibile visible · online true
+tab 2097895041 16:52:09.543 +0.0s [hwupgrade /news/index2.html] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097895041 16:52:09.546 +0.0s [hwupgrade /news/index2.html] archivio: pagina 2 · segnalibro 159584 · flag ricerca null · ricerca attiva false 
+tab 2097895041 16:52:09.547 +0.0s [hwupgrade /news/index2.html] archivio: pagina 2 · 30 notizie · dalla 159606 alla 159595 · segnalibro in posizione -1
+tab 2097895041 16:53:03.220 +0.0s [hwupgrade /news/index.html] content script attivo: hwupgrade · url https://www.hwupgrade.it/news/index.html · visibile visible · online true
+tab 2097895041 16:53:03.222 +0.0s [hwupgrade /news/index.html] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097895041 16:53:03.224 +0.0s [hwupgrade /news/index.html] archivio: pagina 1 · segnalibro 159584 · flag ricerca null · ricerca attiva false 
+tab 2097895041 16:53:03.224 +0.0s [hwupgrade /news/index.html] archivio: pagina 1 · 30 notizie · dalla 159654 alla 159407 · segnalibro in posizione -1
+tab 2097895305 21:28:58.527 +0.0s [hdblog /] content script attivo: hdblog · url https://www.hdblog.it/ · visibile visible · online true
+tab 2097895305 21:28:58.530 +0.0s [hdblog /] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home true · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097895305 21:28:58.531 +0.0s [hdblog /] home: feed 20 notizie · 20 nodi · dalla www.hdmotori.it/volkswagen-2027-videogame-tetris alla n671489 · readyState interactive
+tab 2097895305 21:28:58.532 +0.0s [hdblog /] registro: raggiunto → AVANZA · prima: marker n671416 pending n671489 reached true · dopo: marker n671489 pending www.hdmotori.it/volkswagen-2027-videogame-tetris · segnalibro nel feed in posizione 19
+tab 2097895305 21:28:58.534 +0.0s [hdblog /] stato: non lette 19 · segnalibro in pagina true (posizione 19) · feed 20 · doppioni nascosti 0 · fonte feed
+tab 2097895306 21:28:59.324 +0.0s [hwupgrade /] content script attivo: hwupgrade · url https://www.hwupgrade.it/ · visibile hidden · online true
+tab 2097895306 21:28:59.326 +0.0s [hwupgrade /] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home true · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097895306 21:28:59.327 +0.0s [hwupgrade /] home: feed 42 notizie · 42 nodi · dalla 159657 alla 159621 · readyState interactive
+tab 2097895306 21:28:59.328 +0.0s [hwupgrade /] registro: raggiunto → AVANZA · prima: marker 159584 pending 159654 reached true · dopo: marker 159654 pending 159657 · segnalibro nel feed in posizione 3
+tab 2097895306 21:28:59.328 +0.0s [hwupgrade /] stato: non lette 3 · segnalibro in pagina true (posizione 3) · feed 42 · doppioni nascosti 0 · fonte feed
+tab 2097895305 21:29:01.565 +3.0s [hdblog /] ricerca: avvio · segnalibro n671489 · già in pagina true · feed 20 · pagina archivio null · conteggio null · conteggio in corso false
+tab 2097895305 21:29:01.565 +3.0s [hdblog /] ricerca: strada · già in pagina
+tab 2097895305 21:29:01.565 +3.0s [hdblog /] ricerca: segnalibro TROVATO in pagina, lo centro
+tab 2097895305 21:29:01.566 +3.0s [hdblog /] ricerca: fine sulla pagina · esito true
+tab 2097895305 21:29:01.577 +3.1s [hdblog /] segnalibro RAGGIUNTO (visto sullo schermo): al prossimo caricamento avanza
+tab 2097895305 21:29:02.813 +4.3s [hdblog /] stato: non lette 19 · segnalibro in pagina true (posizione 19) · feed 30 · doppioni nascosti 0 · fonte feed
+tab 2097895306 21:29:28.533 +29.2s [hwupgrade /] segnalibro RAGGIUNTO (visto sullo schermo): al prossimo caricamento avanza
+tab 2097895900 10:12:44.566 +0.0s [hdblog /] content script attivo: hdblog · url https://www.hdblog.it/ · visibile hidden · online true
+tab 2097895900 10:12:44.573 +0.0s [hdblog /] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home true · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097895900 10:12:44.573 +0.0s [hdblog /] home: feed 20 notizie · 20 nodi · dalla n671555 alla n671534 · readyState interactive
+tab 2097895900 10:12:44.574 +0.0s [hdblog /] registro: raggiunto → AVANZA · prima: marker n671489 pending www.hdmotori.it/volkswagen-2027-videogame-tetris reached true · dopo: marker www.hdmotori.it/volkswagen-2027-videogame-tetris pending n671555 · segnalibro nel feed in posizione -1
+tab 2097895900 10:12:44.574 +0.0s [hdblog /] conteggio: avvio · segnalibro www.hdmotori.it/volkswagen-2027-videogame-tetris · più recente n671555
+tab 2097895900 10:12:44.575 +0.0s [hdblog /] stato: non lette 20+ · segnalibro in pagina false  · feed 20 · doppioni nascosti 0 · fonte feed (conteggio in corso)
+tab 2097895901 10:12:45.113 +0.0s [hwupgrade /] content script attivo: hwupgrade · url https://www.hwupgrade.it/ · visibile hidden · online true
+tab 2097895901 10:12:45.119 +0.0s [hwupgrade /] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home true · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097895901 10:12:45.120 +0.0s [hwupgrade /] home: feed 42 notizie · 42 nodi · dalla 159668 alla 159643 · readyState interactive
+tab 2097895901 10:12:45.122 +0.0s [hwupgrade /] registro: raggiunto → AVANZA · prima: marker 159654 pending 159657 reached true · dopo: marker 159657 pending 159668 · segnalibro nel feed in posizione 24
+tab 2097895901 10:12:45.131 +0.0s [hwupgrade /] stato: non lette 24 · segnalibro in pagina true (posizione 24) · feed 42 · doppioni nascosti 0 · fonte feed
+tab 2097895900 10:12:45.432 +0.9s [hdblog /] conteggio: HTTP 200 · 182045 caratteri in 857 ms · https://www.hdblog.it/new_files/ajax/pages.php?page=1&b=10
+tab 2097895900 10:12:45.436 +0.9s [hdblog /] conteggio: pagina 1 · 100 notizie (0 doppioni) · dalla n671555 alla n671416
+tab 2097895900 10:12:45.436 +0.9s [hdblog /] conteggio: segnalibro www.hdmotori.it/volkswagen-2027-videogame-tetris trovato in posizione 24 (esatto)
+tab 2097895900 10:12:45.436 +0.9s [hdblog /] conteggio: esito 24 (esatto)
+tab 2097895900 10:12:45.436 +0.9s [hdblog /] stato: non lette 24 · segnalibro in pagina false  · feed 20 · doppioni nascosti 0 · fonte conteggio
+tab 2097895900 10:14:23.094 +98.5s [hdblog /] ricerca: avvio · segnalibro www.hdmotori.it/volkswagen-2027-videogame-tetris · già in pagina false · feed 20 · pagina archivio null · conteggio {"count":24,"exact":true} · conteggio in corso false
+tab 2097895900 10:14:23.094 +98.5s [hdblog /] ricerca: strada · noScrollSeek → attesa feed, poi archivio
+tab 2097895900 10:14:24.609 +100.0s [hdblog /] ricerca: feed assestato · 20 notizie · segnalibro in pagina false
+tab 2097895900 10:14:24.610 +100.0s [hdblog /] ricerca: non in pagina → archivio da pagina 1 · posizione minima nota 24 · posizione esatta 24
+tab 2097895900 10:14:24.610 +100.0s [hdblog /] archivio: vado a https://www.hdblog.it/page/1/ · flag {"page":1,"ts":1790324064610,"scanned":0,"target":24}
+tab 2097895900 10:14:24.610 +100.0s [hdblog /] ricerca: fine sulla pagina · esito true
+tab 2097895900 10:14:25.982 +0.0s [hdblog /page/1/] content script attivo: hdblog · url https://www.hdblog.it/page/1/ · visibile visible · online true
+tab 2097895900 10:14:25.983 +0.0s [hdblog /page/1/] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097895900 10:14:25.983 +0.0s [hdblog /page/1/] archivio: pagina 1 · segnalibro www.hdmotori.it/volkswagen-2027-videogame-tetris · flag ricerca {"page":1,"scanned":0,"target":24,"ts":1790324064610} · ricerca attiva true 
+tab 2097895900 10:14:27.840 +1.9s [hdblog /page/1/] archivio: pagina 1 · 0 notizie · (vuota) · segnalibro in posizione -1
+tab 2097895900 10:14:27.840 +1.9s [hdblog /page/1/] archivio: esaminate 0 · posizione attesa 24 · pagina più vecchia del segnalibro false · oltre false
+tab 2097895900 10:14:27.840 +1.9s [hdblog /page/1/] archivio: ricerca FERMATA · pagina vuota
+tab 2097895900 10:14:27.840 +1.9s [hdblog /page/1/] ricerca nell'archivio interrotta a pagina 1
+tab 2097895900 10:14:29.080 +0.0s [hdblog /page/1/] content script attivo: hdblog · url https://www.hdblog.it/page/1/ · visibile visible · online true
+tab 2097895900 10:14:29.081 +0.0s [hdblog /page/1/] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097895900 10:14:29.081 +0.0s [hdblog /page/1/] archivio: pagina 1 · segnalibro www.hdmotori.it/volkswagen-2027-videogame-tetris · flag ricerca null · ricerca attiva false 
+tab 2097895900 10:14:29.082 +0.0s [hdblog /page/1/] archivio: pagina 1 · 100 notizie · dalla n671555 alla n671416 · segnalibro in posizione 24
+tab 2097895900 10:14:29.082 +0.0s [hdblog /page/1/] archivio: segnalibro TROVATO a pagina 1 posizione 24
+tab 2097895900 10:14:31.595 +0.0s [hdblog /] content script attivo: hdblog · url https://www.hdblog.it/ · visibile visible · online true
+tab 2097895900 10:14:31.596 +0.0s [hdblog /] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home true · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097895900 10:14:31.596 +0.0s [hdblog /] home: feed 20 notizie · 20 nodi · dalla n671555 alla n671534 · readyState complete
+tab 2097895900 10:14:31.602 +0.0s [hdblog /] registro: mai raggiunto (fermo) · prima: marker www.hdmotori.it/volkswagen-2027-videogame-tetris pending n671555 reached false · dopo: marker www.hdmotori.it/volkswagen-2027-videogame-tetris pending n671555 · segnalibro nel feed in posizione -1
+tab 2097895900 10:14:31.602 +0.0s [hdblog /] conteggio: avvio · segnalibro www.hdmotori.it/volkswagen-2027-videogame-tetris · più recente n671555
+tab 2097895900 10:14:31.602 +0.0s [hdblog /] stato: non lette 20+ · segnalibro in pagina false  · feed 20 · doppioni nascosti 0 · fonte feed (conteggio in corso)
+tab 2097895900 10:14:31.602 +0.0s [hdblog /] conteggio: dalla cache · 24 (esatto) · età 106 s
+tab 2097895900 10:14:31.602 +0.0s [hdblog /] conteggio: esito 24 (esatto)
+tab 2097895900 10:14:31.602 +0.0s [hdblog /] stato: non lette 24 · segnalibro in pagina false  · feed 20 · doppioni nascosti 0 · fonte conteggio
+tab 2097895900 10:14:33.438 +1.8s [hdblog /] comando dal pop-up/toast: scrollToMarker
+tab 2097895900 10:14:33.439 +1.8s [hdblog /] ricerca: avvio · segnalibro www.hdmotori.it/volkswagen-2027-videogame-tetris · già in pagina false · feed 20 · pagina archivio null · conteggio {"count":24,"exact":true} · conteggio in corso false
+tab 2097895900 10:14:33.439 +1.8s [hdblog /] ricerca: strada · noScrollSeek → attesa feed, poi archivio
+tab 2097895900 10:14:34.957 +3.4s [hdblog /] ricerca: feed assestato · 20 notizie · segnalibro in pagina false
+tab 2097895900 10:14:34.957 +3.4s [hdblog /] ricerca: non in pagina → archivio da pagina 1 · posizione minima nota 24 · posizione esatta 24
+tab 2097895900 10:14:34.957 +3.4s [hdblog /] archivio: vado a https://www.hdblog.it/page/1/ · flag {"page":1,"ts":1790324074957,"scanned":0,"target":24}
+tab 2097895900 10:14:34.958 +3.4s [hdblog /] ricerca: fine sulla pagina · esito true
+tab 2097895900 10:14:35.218 +0.0s [hdblog /page/1/] content script attivo: hdblog · url https://www.hdblog.it/page/1/ · visibile visible · online true
+tab 2097895900 10:14:35.219 +0.0s [hdblog /page/1/] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097895900 10:14:35.222 +0.0s [hdblog /page/1/] archivio: pagina 1 · segnalibro www.hdmotori.it/volkswagen-2027-videogame-tetris · flag ricerca {"page":1,"scanned":0,"target":24,"ts":1790324074957} · ricerca attiva true 
+tab 2097895900 10:14:35.222 +0.0s [hdblog /page/1/] archivio: pagina 1 · 100 notizie · dalla n671555 alla n671416 · segnalibro in posizione 24
+tab 2097895900 10:14:35.222 +0.0s [hdblog /page/1/] archivio: segnalibro TROVATO a pagina 1 posizione 24
+tab 2097895900 10:14:35.229 +0.0s [hdblog /page/1/] segnalibro RAGGIUNTO (visto sullo schermo): al prossimo caricamento avanza
+tab 2097895909 10:14:52.942 +0.0s [hdblog /games/articoli/n671550/gta-6-collectors-edition-prezzo-senza-gioco/] content script attivo: hdblog · url https://www.hdblog.it/games/articoli/n671550/gta-6-collectors-edition-prezzo-senza-gioco/ · visibile hidden · online true
+tab 2097895909 10:14:52.944 +0.0s [hdblog /games/articoli/n671550/gta-6-collectors-edition-prezzo-senza-gioco/] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097895909 10:14:52.945 +0.0s [hdblog /games/articoli/n671550/gta-6-collectors-edition-prezzo-senza-gioco/] articolo registrato: hdblog n671550 · GTA 6, la Collector’s Edition costa tanto e n
+tab 2097895910 10:14:57.857 +0.0s [hdblog /mercato/articoli/n671555/big-tech-donald-trump-ospiti-cook-musk-ai/] content script attivo: hdblog · url https://www.hdblog.it/mercato/articoli/n671555/big-tech-donald-trump-ospiti-cook-musk-ai/ · visibile hidden · online true
+tab 2097895910 10:14:57.859 +0.0s [hdblog /mercato/articoli/n671555/big-tech-donald-trump-ospiti-cook-musk-ai/] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097895910 10:14:57.860 +0.0s [hdblog /mercato/articoli/n671555/big-tech-donald-trump-ospiti-cook-musk-ai/] articolo registrato: hdblog n671555 · Big Tech al tavolo di Trump e Xi Jinping: gli
+tab 2097895900 10:14:58.556 +0.0s [hdblog /] content script attivo: hdblog · url https://www.hdblog.it/ · visibile visible · online true
+tab 2097895900 10:14:58.557 +0.0s [hdblog /] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home true · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097895900 10:14:58.557 +0.0s [hdblog /] home: feed 20 notizie · 20 nodi · dalla n671555 alla n671534 · readyState complete
+tab 2097895900 10:14:58.560 +0.0s [hdblog /] registro: raggiunto → AVANZA · prima: marker www.hdmotori.it/volkswagen-2027-videogame-tetris pending n671555 reached true · dopo: marker n671555 pending n671555 · segnalibro nel feed in posizione 0
+tab 2097895900 10:14:58.561 +0.0s [hdblog /] stato: non lette 0 · segnalibro in pagina true (posizione 0) · feed 20 · doppioni nascosti 0 · fonte feed
+tab 2097895900 10:14:58.564 +0.0s [hdblog /] segnalibro RAGGIUNTO (visto sullo schermo): al prossimo caricamento avanza
+tab 2097895901 10:15:03.577 +138.5s [hwupgrade /] ricerca: avvio · segnalibro 159657 · già in pagina true · feed 42 · pagina archivio null · conteggio null · conteggio in corso false
+tab 2097895901 10:15:03.577 +138.5s [hwupgrade /] ricerca: strada · già in pagina
+tab 2097895901 10:15:03.577 +138.5s [hwupgrade /] ricerca: segnalibro TROVATO in pagina, lo centro
+tab 2097895901 10:15:03.577 +138.5s [hwupgrade /] ricerca: fine sulla pagina · esito true
+tab 2097895901 10:15:03.580 +138.5s [hwupgrade /] segnalibro RAGGIUNTO (visto sullo schermo): al prossimo caricamento avanza
+tab 2097896022 14:14:39.260 +0.0s [hdblog /] content script attivo: hdblog · url https://www.hdblog.it/ · visibile visible · online true
+tab 2097896022 14:14:39.262 +0.0s [hdblog /] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home true · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896022 14:14:39.263 +0.0s [hdblog /] home: feed 20 notizie · 20 nodi · dalla n671431 alla n671596 · readyState complete
+tab 2097896022 14:14:39.265 +0.0s [hdblog /] registro: raggiunto → AVANZA · prima: marker n671555 pending n671555 reached true · dopo: marker n671555 pending n671431 · segnalibro nel feed in posizione -1
+tab 2097896022 14:14:39.267 +0.0s [hdblog /] conteggio: avvio · segnalibro n671555 · più recente n671431
+tab 2097896022 14:14:39.267 +0.0s [hdblog /] stato: non lette 20+ · segnalibro in pagina false  · feed 20 · doppioni nascosti 0 · fonte feed (conteggio in corso)
+tab 2097896022 14:14:39.346 +0.1s [hdblog /] conteggio: HTTP 200 · 182329 caratteri in 78 ms · https://www.hdblog.it/new_files/ajax/pages.php?page=1&b=10
+tab 2097896022 14:14:39.349 +0.1s [hdblog /] conteggio: pagina 1 · 100 notizie (0 doppioni) · dalla n671431 alla n670867
+tab 2097896022 14:14:39.349 +0.1s [hdblog /] conteggio: segnalibro n671555 trovato in posizione 36 (esatto)
+tab 2097896022 14:14:39.350 +0.1s [hdblog /] conteggio: esito 36 (esatto)
+tab 2097896022 14:14:39.350 +0.1s [hdblog /] stato: non lette 36 · segnalibro in pagina false  · feed 20 · doppioni nascosti 0 · fonte conteggio
+tab 2097896023 14:14:40.529 +0.0s [hwupgrade /] content script attivo: hwupgrade · url https://www.hwupgrade.it/ · visibile hidden · online true
+tab 2097896023 14:14:40.533 +0.0s [hwupgrade /] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home true · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896023 14:14:40.534 +0.0s [hwupgrade /] home: feed 42 notizie · 42 nodi · dalla 159716 alla 159681 · readyState interactive
+tab 2097896023 14:14:40.534 +0.0s [hwupgrade /] registro: raggiunto → AVANZA · prima: marker 159657 pending 159668 reached true · dopo: marker 159668 pending 159716 · segnalibro nel feed in posizione 32
+tab 2097896023 14:14:40.535 +0.0s [hwupgrade /] stato: non lette 32 · segnalibro in pagina true (posizione 32) · feed 42 · doppioni nascosti 0 · fonte feed
+tab 2097896022 14:14:41.433 +2.2s [hdblog /] ricerca: avvio · segnalibro n671555 · già in pagina false · feed 20 · pagina archivio null · conteggio {"count":36,"exact":true} · conteggio in corso false
+tab 2097896022 14:14:41.433 +2.2s [hdblog /] ricerca: strada · noScrollSeek → attesa feed, poi archivio
+tab 2097896022 14:14:42.949 +3.7s [hdblog /] ricerca: feed assestato · 20 notizie · segnalibro in pagina false
+tab 2097896022 14:14:42.950 +3.7s [hdblog /] ricerca: non in pagina → archivio da pagina 1 · posizione minima nota 36 · posizione esatta 36
+tab 2097896022 14:14:42.953 +3.7s [hdblog /] archivio: vado a https://www.hdblog.it/page/1/ · flag {"page":1,"ts":1790338482950,"scanned":0,"target":36}
+tab 2097896022 14:14:42.954 +3.7s [hdblog /] ricerca: fine sulla pagina · esito true
+tab 2097896022 14:14:43.153 +0.0s [hdblog /page/1/] content script attivo: hdblog · url https://www.hdblog.it/page/1/ · visibile visible · online true
+tab 2097896022 14:14:43.154 +0.0s [hdblog /page/1/] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896022 14:14:43.155 +0.0s [hdblog /page/1/] archivio: pagina 1 · segnalibro n671555 · flag ricerca {"page":1,"scanned":0,"target":36,"ts":1790338482950} · ricerca attiva true 
+tab 2097896022 14:14:43.156 +0.0s [hdblog /page/1/] archivio: pagina 1 · 100 notizie · dalla n671431 alla n670867 · segnalibro in posizione 36
+tab 2097896022 14:14:43.156 +0.0s [hdblog /page/1/] archivio: segnalibro TROVATO a pagina 1 posizione 36
+tab 2097896022 14:14:43.167 +0.0s [hdblog /page/1/] segnalibro RAGGIUNTO (visto sullo schermo): al prossimo caricamento avanza
+tab 2097896024 14:15:51.038 +0.0s [hdblog /mercato/articoli/n671555/big-tech-donald-trump-ospiti-cook-musk-ai/] content script attivo: hdblog · url https://www.hdblog.it/mercato/articoli/n671555/big-tech-donald-trump-ospiti-cook-musk-ai/ · visibile hidden · online true
+tab 2097896024 14:15:51.040 +0.0s [hdblog /mercato/articoli/n671555/big-tech-donald-trump-ospiti-cook-musk-ai/] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896024 14:15:51.041 +0.0s [hdblog /mercato/articoli/n671555/big-tech-donald-trump-ospiti-cook-musk-ai/] articolo registrato: hdblog n671555 · Big Tech al tavolo di Trump e Xi Jinping: gli
+tab 2097896025 14:16:52.346 +0.0s [hdblog /nintendo/articoli/n671593/nintendo-vince-causa-contro-archbox/] content script attivo: hdblog · url https://www.hdblog.it/nintendo/articoli/n671593/nintendo-vince-causa-contro-archbox/ · visibile hidden · online true
+tab 2097896025 14:16:52.347 +0.0s [hdblog /nintendo/articoli/n671593/nintendo-vince-causa-contro-archbox/] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896025 14:16:52.348 +0.0s [hdblog /nintendo/articoli/n671593/nintendo-vince-causa-contro-archbox/] articolo registrato: hdblog n671593 · Nintendo vince la causa contro Archbox: 4,5 m
+tab 2097896023 14:19:54.853 +314.3s [hwupgrade /] ricerca: avvio · segnalibro 159668 · già in pagina true · feed 42 · pagina archivio null · conteggio null · conteggio in corso false
+tab 2097896023 14:19:54.853 +314.3s [hwupgrade /] ricerca: strada · già in pagina
+tab 2097896023 14:19:54.853 +314.3s [hwupgrade /] ricerca: segnalibro TROVATO in pagina, lo centro
+tab 2097896023 14:19:54.853 +314.3s [hwupgrade /] ricerca: fine sulla pagina · esito true
+tab 2097896023 14:19:54.856 +314.3s [hwupgrade /] segnalibro RAGGIUNTO (visto sullo schermo): al prossimo caricamento avanza
+tab 2097896026 14:21:16.196 +0.0s [hwupgrade /news/web/gli-appunti-di-gemini-notebooks-finiscono-su-google-docs-come-funziona-l-integrazione_159697.html] content script attivo: hwupgrade · url https://www.hwupgrade.it/news/web/gli-appunti-di-gemini-notebooks-finiscono-su-google-docs-come-funziona-l-integrazione_159697.html · visibile hidden · online true
+tab 2097896026 14:21:16.198 +0.0s [hwupgrade /news/web/gli-appunti-di-gemini-notebooks-finiscono-su-google-docs-come-funziona-l-integrazione_159697.html] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896026 14:21:16.199 +0.0s [hwupgrade /news/web/gli-appunti-di-gemini-notebooks-finiscono-su-google-docs-come-funziona-l-integrazione_159697.html] articolo registrato: hwupgrade 159697 · Gli appunti di Gemini Notebooks finiscono su 
+tab 2097896027 14:21:55.447 +0.0s [hwupgrade /news/periferiche/la-scrivania-che-ricarica-il-telefono-ovunque-realta-airdesk-surclassa-l-idea-originale-di-apple_159708.html] content script attivo: hwupgrade · url https://www.hwupgrade.it/news/periferiche/la-scrivania-che-ricarica-il-telefono-ovunque-realta-airdesk-surclassa-l-idea-originale-di-apple_159708.html · visibile hidden · online true
+tab 2097896027 14:21:55.449 +0.0s [hwupgrade /news/periferiche/la-scrivania-che-ricarica-il-telefono-ovunque-realta-airdesk-surclassa-l-idea-originale-di-apple_159708.html] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896027 14:21:55.450 +0.0s [hwupgrade /news/periferiche/la-scrivania-che-ricarica-il-telefono-ovunque-realta-airdesk-surclassa-l-idea-originale-di-apple_159708.html] articolo registrato: hwupgrade 159708 · La scrivania che ricarica il telefono ovunque
+tab 2097896028 14:22:01.199 +0.0s [hwupgrade /news/web/lo-spazzolino-da-denti-di-dyson-diventa-una-fotocamera-da-strada-e-i-risultati-sono-assurdi_159714.html] content script attivo: hwupgrade · url https://www.hwupgrade.it/news/web/lo-spazzolino-da-denti-di-dyson-diventa-una-fotocamera-da-strada-e-i-risultati-sono-assurdi_159714.html · visibile hidden · online true
+tab 2097896028 14:22:01.200 +0.0s [hwupgrade /news/web/lo-spazzolino-da-denti-di-dyson-diventa-una-fotocamera-da-strada-e-i-risultati-sono-assurdi_159714.html] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896028 14:22:01.201 +0.0s [hwupgrade /news/web/lo-spazzolino-da-denti-di-dyson-diventa-una-fotocamera-da-strada-e-i-risultati-sono-assurdi_159714.html] articolo registrato: hwupgrade 159714 · Lo spazzolino da denti di Dyson diventa una f
+tab 2097896023 14:22:08.500 +0.0s [hwupgrade /news/web/l-agente-ia-cancella-48-mila-file-in-103-secondi-git-neutralizzato-da-claude-code_159716.html] content script attivo: hwupgrade · url https://www.hwupgrade.it/news/web/l-agente-ia-cancella-48-mila-file-in-103-secondi-git-neutralizzato-da-claude-code_159716.html · visibile visible · online true
+tab 2097896023 14:22:08.502 +0.0s [hwupgrade /news/web/l-agente-ia-cancella-48-mila-file-in-103-secondi-git-neutralizzato-da-claude-code_159716.html] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896023 14:22:08.505 +0.0s [hwupgrade /news/web/l-agente-ia-cancella-48-mila-file-in-103-secondi-git-neutralizzato-da-claude-code_159716.html] articolo registrato: hwupgrade 159716 · L'agente IA cancella 48 mila file in 103 seco
+tab 2097896039 17:12:53.252 +0.0s [hdblog /] content script attivo: hdblog · url https://www.hdblog.it/ · visibile visible · online true
+tab 2097896039 17:12:53.254 +0.0s [hdblog /] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home true · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896039 17:12:53.255 +0.0s [hdblog /] home: feed 20 notizie · 20 nodi · dalla www.hdmotori.it/ducati-multistrada-v4-pikes-peak-2027 alla n671628 · readyState complete
+tab 2097896039 17:12:53.256 +0.0s [hdblog /] registro: raggiunto → AVANZA · prima: marker n671555 pending n671431 reached true · dopo: marker n671431 pending www.hdmotori.it/ducati-multistrada-v4-pikes-peak-2027 · segnalibro nel feed in posizione -1
+tab 2097896039 17:12:53.259 +0.0s [hdblog /] conteggio: avvio · segnalibro n671431 · più recente www.hdmotori.it/ducati-multistrada-v4-pikes-peak-2027
+tab 2097896039 17:12:53.260 +0.0s [hdblog /] stato: non lette 20+ · segnalibro in pagina false  · feed 20 · doppioni nascosti 0 · fonte feed (conteggio in corso)
+tab 2097896039 17:12:53.368 +0.1s [hdblog /] conteggio: HTTP 200 · 181655 caratteri in 108 ms · https://www.hdblog.it/new_files/ajax/pages.php?page=1&b=10
+tab 2097896039 17:12:53.371 +0.1s [hdblog /] conteggio: pagina 1 · 100 notizie (0 doppioni) · dalla www.hdmotori.it/ducati-multistrada-v4-pikes-peak-2027 alla www.hdmotori.it/petrolio-prezzi-record-costo-benzina-oggi
+tab 2097896039 17:12:53.371 +0.1s [hdblog /] conteggio: segnalibro n671431 trovato in posizione 22 (esatto)
+tab 2097896039 17:12:53.372 +0.1s [hdblog /] conteggio: esito 22 (esatto)
+tab 2097896039 17:12:53.372 +0.1s [hdblog /] stato: non lette 22 · segnalibro in pagina false  · feed 20 · doppioni nascosti 0 · fonte conteggio
+tab 2097896040 17:12:53.778 +0.0s [hwupgrade /] content script attivo: hwupgrade · url https://www.hwupgrade.it/ · visibile hidden · online true
+tab 2097896040 17:12:53.780 +0.0s [hwupgrade /] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home true · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896040 17:12:53.781 +0.0s [hwupgrade /] home: feed 42 notizie · 42 nodi · dalla 159727 alla 159669 · readyState interactive
+tab 2097896040 17:12:53.781 +0.0s [hwupgrade /] registro: raggiunto → AVANZA · prima: marker 159668 pending 159716 reached true · dopo: marker 159716 pending 159727 · segnalibro nel feed in posizione 11
+tab 2097896040 17:12:53.782 +0.0s [hwupgrade /] stato: non lette 11 · segnalibro in pagina true (posizione 11) · feed 42 · doppioni nascosti 0 · fonte feed
+tab 2097896039 17:12:54.901 +1.6s [hdblog /] ricerca: avvio · segnalibro n671431 · già in pagina false · feed 20 · pagina archivio null · conteggio {"count":22,"exact":true} · conteggio in corso false
+tab 2097896039 17:12:54.901 +1.6s [hdblog /] ricerca: strada · noScrollSeek → attesa feed, poi archivio
+tab 2097896039 17:12:56.415 +3.2s [hdblog /] ricerca: feed assestato · 20 notizie · segnalibro in pagina false
+tab 2097896039 17:12:56.415 +3.2s [hdblog /] ricerca: non in pagina → archivio da pagina 1 · posizione minima nota 22 · posizione esatta 22
+tab 2097896039 17:12:56.416 +3.2s [hdblog /] archivio: vado a https://www.hdblog.it/page/1/ · flag {"page":1,"ts":1790349176415,"scanned":0,"target":22}
+tab 2097896039 17:12:56.416 +3.2s [hdblog /] ricerca: fine sulla pagina · esito true
+tab 2097896039 17:12:56.589 +0.0s [hdblog /page/1/] content script attivo: hdblog · url https://www.hdblog.it/page/1/ · visibile visible · online true
+tab 2097896039 17:12:56.591 +0.0s [hdblog /page/1/] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896039 17:12:56.594 +0.0s [hdblog /page/1/] archivio: pagina 1 · segnalibro n671431 · flag ricerca {"page":1,"scanned":0,"target":22,"ts":1790349176415} · ricerca attiva true 
+tab 2097896039 17:12:56.595 +0.0s [hdblog /page/1/] archivio: pagina 1 · 100 notizie · dalla www.hdmotori.it/ducati-multistrada-v4-pikes-peak-2027 alla www.hdmotori.it/petrolio-prezzi-record-costo-benzina-oggi · segnalibro in posizione 22
+tab 2097896039 17:12:56.595 +0.0s [hdblog /page/1/] archivio: segnalibro TROVATO a pagina 1 posizione 22
+tab 2097896039 17:12:56.601 +0.0s [hdblog /page/1/] segnalibro RAGGIUNTO (visto sullo schermo): al prossimo caricamento avanza
+tab 2097896040 17:13:19.117 +25.3s [hwupgrade /] ricerca: avvio · segnalibro 159716 · già in pagina true · feed 42 · pagina archivio null · conteggio null · conteggio in corso false
+tab 2097896040 17:13:19.117 +25.3s [hwupgrade /] ricerca: strada · già in pagina
+tab 2097896040 17:13:19.117 +25.3s [hwupgrade /] ricerca: segnalibro TROVATO in pagina, lo centro
+tab 2097896040 17:13:19.117 +25.3s [hwupgrade /] ricerca: fine sulla pagina · esito true
+tab 2097896040 17:13:19.124 +25.3s [hwupgrade /] segnalibro RAGGIUNTO (visto sullo schermo): al prossimo caricamento avanza
+tab 2097896041 17:13:23.471 +0.0s [hdblog /games/articoli/n671635/nba-fine-novembre-rischio-colpa-gta-6/] content script attivo: hdblog · url https://www.hdblog.it/games/articoli/n671635/nba-fine-novembre-rischio-colpa-gta-6/ · visibile hidden · online true
+tab 2097896041 17:13:23.472 +0.0s [hdblog /games/articoli/n671635/nba-fine-novembre-rischio-colpa-gta-6/] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896041 17:13:23.474 +0.0s [hdblog /games/articoli/n671635/nba-fine-novembre-rischio-colpa-gta-6/] articolo registrato: hdblog n671635 · NBA, fine novembre a rischio per colpa di GTA
+tab 2097896165 13:26:30.128 +0.0s [hdblog /] content script attivo: hdblog · url https://www.hdblog.it/ · visibile visible · online true
+tab 2097896165 13:26:30.130 +0.0s [hdblog /] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home true · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896165 13:26:30.131 +0.0s [hdblog /] home: feed 20 notizie · 20 nodi · dalla www.hdmotori.it/eicma-2026-concept-moto-kardesign-bezzi alla www.hdmotori.it/edizione-luna-rossa-alfa-romeo-associa-tutta-la-gamma-allorgoglio-italiano · readyState complete
+tab 2097896165 13:26:30.131 +0.0s [hdblog /] registro: mai raggiunto (fermo) · prima: marker www.hdmotori.it/ducati-multistrada-v4-pikes-peak-2027 pending www.hdmotori.it/eicma-2026-concept-moto-kardesign-bezzi reached false · dopo: marker www.hdmotori.it/ducati-multistrada-v4-pikes-peak-2027 pending www.hdmotori.it/eicma-2026-concept-moto-kardesign-bezzi · segnalibro nel feed in posizione -1
+tab 2097896165 13:26:30.132 +0.0s [hdblog /] conteggio: avvio · segnalibro www.hdmotori.it/ducati-multistrada-v4-pikes-peak-2027 · più recente www.hdmotori.it/eicma-2026-concept-moto-kardesign-bezzi
+tab 2097896165 13:26:30.132 +0.0s [hdblog /] stato: non lette 20+ · segnalibro in pagina false  · feed 20 · doppioni nascosti 0 · fonte feed (conteggio in corso)
+tab 2097896165 13:26:30.132 +0.0s [hdblog /] conteggio: dalla cache · 38 (esatto) · età 92 s
+tab 2097896165 13:26:30.132 +0.0s [hdblog /] conteggio: esito 38 (esatto)
+tab 2097896165 13:26:30.132 +0.0s [hdblog /] stato: non lette 38 · segnalibro in pagina false  · feed 20 · doppioni nascosti 0 · fonte conteggio
+tab 2097896165 13:26:31.634 +1.5s [hdblog /] ricerca: avvio · segnalibro www.hdmotori.it/ducati-multistrada-v4-pikes-peak-2027 · già in pagina false · feed 20 · pagina archivio null · conteggio {"count":38,"exact":true} · conteggio in corso false
+tab 2097896165 13:26:31.634 +1.5s [hdblog /] ricerca: strada · noScrollSeek → attesa feed, poi archivio
+tab 2097896165 13:26:33.152 +3.0s [hdblog /] ricerca: feed assestato · 20 notizie · segnalibro in pagina false
+tab 2097896165 13:26:33.152 +3.0s [hdblog /] ricerca: non in pagina → archivio da pagina 1 · posizione minima nota 38 · posizione esatta 38
+tab 2097896165 13:26:33.152 +3.0s [hdblog /] archivio: vado a https://www.hdblog.it/page/1/ · flag {"page":1,"ts":1790421993152,"scanned":0,"target":38}
+tab 2097896165 13:26:33.153 +3.0s [hdblog /] ricerca: fine sulla pagina · esito true
+tab 2097896165 13:26:33.278 +0.0s [hdblog /page/1/] content script attivo: hdblog · url https://www.hdblog.it/page/1/ · visibile visible · online true
+tab 2097896165 13:26:33.278 +0.0s [hdblog /page/1/] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896165 13:26:33.280 +0.0s [hdblog /page/1/] archivio: pagina 1 · segnalibro www.hdmotori.it/ducati-multistrada-v4-pikes-peak-2027 · flag ricerca {"page":1,"scanned":0,"target":38,"ts":1790421993152} · ricerca attiva true 
+tab 2097896165 13:26:33.280 +0.0s [hdblog /page/1/] archivio: pagina 1 · 100 notizie · dalla www.hdmotori.it/eicma-2026-concept-moto-kardesign-bezzi alla n671557 · segnalibro in posizione 38
+tab 2097896165 13:26:33.280 +0.0s [hdblog /page/1/] archivio: segnalibro TROVATO a pagina 1 posizione 38
+tab 2097896165 13:26:33.290 +0.0s [hdblog /page/1/] segnalibro RAGGIUNTO (visto sullo schermo): al prossimo caricamento avanza
+tab 2097896165 13:34:20.938 +0.0s [hdblog /indossabili/articoli/n671696/airpods-equalizzatore-aggiornamento-ios-27/] content script attivo: hdblog · url https://www.hdblog.it/indossabili/articoli/n671696/airpods-equalizzatore-aggiornamento-ios-27/ · visibile visible · online true
+tab 2097896165 13:34:20.944 +0.0s [hdblog /indossabili/articoli/n671696/airpods-equalizzatore-aggiornamento-ios-27/] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896165 13:34:20.945 +0.0s [hdblog /indossabili/articoli/n671696/airpods-equalizzatore-aggiornamento-ios-27/] articolo registrato: hdblog n671696 · AirPods, l'ultimo aggiornamento porta finalme
+tab 2097896422 14:28:08.421 +0.0s [hdblog /portatili/articoli/n673215/tool-per-individuare-driver-che-rallentano-pc/] content script attivo: hdblog · url https://www.hdblog.it/portatili/articoli/n673215/tool-per-individuare-driver-che-rallentano-pc/ · visibile hidden · online true
+tab 2097896422 14:28:08.424 +0.0s [hdblog /portatili/articoli/n673215/tool-per-individuare-driver-che-rallentano-pc/] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896422 14:28:08.426 +0.0s [hdblog /portatili/articoli/n673215/tool-per-individuare-driver-che-rallentano-pc/] articolo registrato: hdblog n673215 · HDblog.it - Verifica Connessione
+tab 2097896422 14:29:02.370 +0.0s [hdblog /portatili/articoli/n673215/tool-per-individuare-driver-che-rallentano-pc/] content script attivo: hdblog · url https://www.hdblog.it/portatili/articoli/n673215/tool-per-individuare-driver-che-rallentano-pc/ · visibile visible · online true
+tab 2097896422 14:29:02.371 +0.0s [hdblog /portatili/articoli/n673215/tool-per-individuare-driver-che-rallentano-pc/] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896422 14:29:02.371 +0.0s [hdblog /portatili/articoli/n673215/tool-per-individuare-driver-che-rallentano-pc/] articolo registrato: hdblog n673215 · PC rallentato? Ecco un tool gratuito per indi
+tab 2097896496 14:33:34.955 +0.0s [hdblog /portatili/articoli/n673215/tool-per-individuare-driver-che-rallentano-pc/] content script attivo: hdblog · url https://www.hdblog.it/portatili/articoli/n673215/tool-per-individuare-driver-che-rallentano-pc/ · visibile visible · online true
+tab 2097896496 14:33:35.273 +0.3s [hdblog /portatili/articoli/n673215/tool-per-individuare-driver-che-rallentano-pc/] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896496 14:33:35.372 +0.4s [hdblog /portatili/articoli/n673215/tool-per-individuare-driver-che-rallentano-pc/] articolo registrato: hdblog n673215 · PC rallentato? Ecco un tool gratuito per indi
+tab 2097896550 15:46:45.589 +0.0s [hdblog /portatili/articoli/n673215/tool-per-individuare-driver-che-rallentano-pc/] content script attivo: hdblog · url https://www.hdblog.it/portatili/articoli/n673215/tool-per-individuare-driver-che-rallentano-pc/ · visibile hidden · online true
+tab 2097896550 15:46:45.592 +0.0s [hdblog /portatili/articoli/n673215/tool-per-individuare-driver-che-rallentano-pc/] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896550 15:46:45.593 +0.0s [hdblog /portatili/articoli/n673215/tool-per-individuare-driver-che-rallentano-pc/] articolo registrato: hdblog n673215 · PC rallentato? Ecco un tool gratuito per indi
+tab 2097896663 19:20:49.199 +0.0s [hdblog /] content script attivo: hdblog · url https://www.hdblog.it/ · visibile visible · online true
+tab 2097896663 19:20:49.201 +0.0s [hdblog /] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home true · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896663 19:20:49.202 +0.0s [hdblog /] home: feed 20 notizie · 20 nodi · dalla n674822 alla n674464 · readyState interactive
+tab 2097896663 19:20:49.203 +0.0s [hdblog /] registro: raggiunto → AVANZA · prima: marker www.hdmotori.it/ducati-multistrada-v4-pikes-peak-2027 pending www.hdmotori.it/eicma-2026-concept-moto-kardesign-bezzi reached true · dopo: marker www.hdmotori.it/eicma-2026-concept-moto-kardesign-bezzi pending n674822 · segnalibro nel feed in posizione -1
+tab 2097896663 19:20:49.206 +0.0s [hdblog /] conteggio: avvio · segnalibro www.hdmotori.it/eicma-2026-concept-moto-kardesign-bezzi · più recente n674822
+tab 2097896663 19:20:49.206 +0.0s [hdblog /] stato: non lette 20+ · segnalibro in pagina false  · feed 20 · doppioni nascosti 0 · fonte feed (conteggio in corso)
+tab 2097896663 19:20:51.027 +1.8s [hdblog /] conteggio: HTTP 200 · 182161 caratteri in 1820 ms · https://www.hdblog.it/new_files/ajax/pages.php?page=1&b=10
+tab 2097896663 19:20:51.030 +1.8s [hdblog /] conteggio: pagina 1 · 100 notizie (0 doppioni) · dalla n674822 alla n674647
+tab 2097896663 19:20:51.030 +1.8s [hdblog /] conteggio: segnalibro www.hdmotori.it/eicma-2026-concept-moto-kardesign-bezzi NON trovato fra 100 notizie (tetto 1 pagine): limite inferiore
+tab 2097896663 19:20:51.030 +1.8s [hdblog /] conteggio: esito 100 (limite inferiore)
+tab 2097896663 19:20:51.030 +1.8s [hdblog /] stato: non lette 100+ · segnalibro in pagina false  · feed 20 · doppioni nascosti 0 · fonte conteggio
+tab 2097896663 19:20:55.588 +6.4s [hdblog /] comando dal pop-up/toast: markAllRead
+tab 2097896663 19:20:55.588 +6.4s [hdblog /] segna tutte come lette · archivio false · nuovo segnalibro n674822 · era www.hdmotori.it/eicma-2026-concept-moto-kardesign-bezzi
+tab 2097896663 19:20:55.589 +6.4s [hdblog /] stato: non lette 0 · segnalibro in pagina true (posizione 0) · feed 20 · doppioni nascosti 0 · fonte feed
+tab 2097896845 08:19:14.234 +0.0s [hdblog /] content script attivo: hdblog · url https://www.hdblog.it/ · visibile hidden · online true
+tab 2097896845 08:19:14.242 +0.0s [hdblog /] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home true · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896845 08:19:14.243 +0.0s [hdblog /] home: feed 20 notizie · 20 nodi · dalla n674843 alla www.hdmotori.it/eni-price-cap-carburanti-31-dicembre-2026 · readyState interactive
+tab 2097896845 08:19:14.243 +0.0s [hdblog /] registro: raggiunto → AVANZA · prima: marker n674822 pending n674822 reached true · dopo: marker n674822 pending n674843 · segnalibro nel feed in posizione 9
+tab 2097896845 08:19:14.244 +0.0s [hdblog /] stato: non lette 9 · segnalibro in pagina true (posizione 9) · feed 20 · doppioni nascosti 0 · fonte feed
+tab 2097896846 08:19:14.879 +0.0s [hwupgrade /] content script attivo: hwupgrade · url https://www.hwupgrade.it/ · visibile hidden · online true
+tab 2097896846 08:19:14.881 +0.0s [hwupgrade /] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home true · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896846 08:19:14.882 +0.0s [hwupgrade /] home: feed 42 notizie · 42 nodi · dalla 161076 alla 161029 · readyState interactive
+tab 2097896846 08:19:14.882 +0.0s [hwupgrade /] registro: mai raggiunto (fermo) · prima: marker 159727 pending 159730 reached false · dopo: marker 159727 pending 161076 · segnalibro nel feed in posizione -1
+tab 2097896846 08:19:14.882 +0.0s [hwupgrade /] conteggio: avvio · segnalibro 159727 · più recente 161076
+tab 2097896846 08:19:14.883 +0.0s [hwupgrade /] stato: non lette 42+ · segnalibro in pagina false  · feed 42 · doppioni nascosti 0 · fonte feed (conteggio in corso)
+tab 2097896846 08:19:15.328 +0.4s [hwupgrade /] conteggio: HTTP 200 · 162272 caratteri in 445 ms · https://www.hwupgrade.it/news/index.html
+tab 2097896846 08:19:15.331 +0.5s [hwupgrade /] conteggio: pagina 1 · 30 notizie (0 doppioni) · dalla 161076 alla 161055
+tab 2097896846 08:19:15.529 +0.7s [hwupgrade /] conteggio: HTTP 200 · 161313 caratteri in 198 ms · https://www.hwupgrade.it/news/index2.html
+tab 2097896846 08:19:15.531 +0.7s [hwupgrade /] conteggio: pagina 2 · 30 notizie (0 doppioni) · dalla 161052 alla 161015
+tab 2097896846 08:19:15.727 +0.8s [hwupgrade /] conteggio: HTTP 200 · 162603 caratteri in 196 ms · https://www.hwupgrade.it/news/index3.html
+tab 2097896846 08:19:15.729 +0.8s [hwupgrade /] conteggio: pagina 3 · 30 notizie (0 doppioni) · dalla 161006 alla 160983
+tab 2097896846 08:19:15.869 +1.0s [hwupgrade /] conteggio: HTTP 200 · 161803 caratteri in 140 ms · https://www.hwupgrade.it/news/index4.html
+tab 2097896846 08:19:15.871 +1.0s [hwupgrade /] conteggio: pagina 4 · 30 notizie (0 doppioni) · dalla 160948 alla 160952
+tab 2097896846 08:19:15.998 +1.1s [hwupgrade /] conteggio: HTTP 200 · 162934 caratteri in 127 ms · https://www.hwupgrade.it/news/index5.html
+tab 2097896846 08:19:16.000 +1.1s [hwupgrade /] conteggio: pagina 5 · 30 notizie (0 doppioni) · dalla 160957 alla 160924
+tab 2097896846 08:19:16.000 +1.1s [hwupgrade /] conteggio: segnalibro 159727 NON trovato fra 150 notizie (tetto 5 pagine): limite inferiore
+tab 2097896846 08:19:16.001 +1.1s [hwupgrade /] conteggio: esito 150 (limite inferiore)
+tab 2097896846 08:19:16.001 +1.1s [hwupgrade /] stato: non lette 150+ · segnalibro in pagina false  · feed 42 · doppioni nascosti 0 · fonte conteggio
+tab 2097896879 08:25:39.728 +0.0s [hdblog /portatili/articoli/n674309/windows-ram-strumento-rammap/] content script attivo: hdblog · url https://www.hdblog.it/portatili/articoli/n674309/windows-ram-strumento-rammap/ · visibile hidden · online true
+tab 2097896879 08:25:39.730 +0.0s [hdblog /portatili/articoli/n674309/windows-ram-strumento-rammap/] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896879 08:25:39.731 +0.0s [hdblog /portatili/articoli/n674309/windows-ram-strumento-rammap/] articolo registrato: hdblog n674309 · Windows usa troppa RAM? Questo strumento grat
+tab 2097896880 08:26:17.994 +0.0s [hdblog /tecnologia/articoli/n674755/it-wallet-regolamento-ufficiale-adesione/] content script attivo: hdblog · url https://www.hdblog.it/tecnologia/articoli/n674755/it-wallet-regolamento-ufficiale-adesione/ · visibile hidden · online true
+tab 2097896880 08:26:17.997 +0.0s [hdblog /tecnologia/articoli/n674755/it-wallet-regolamento-ufficiale-adesione/] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896880 08:26:17.997 +0.0s [hdblog /tecnologia/articoli/n674755/it-wallet-regolamento-ufficiale-adesione/] articolo registrato: hdblog n674755 · IT-Wallet, ecco il regolamento ufficiale per 
+tab 2097896881 08:26:27.527 +0.0s [hdblog /android/articoli/n674748/brick-night-doomscrolling-bluetooth-prezzo/] content script attivo: hdblog · url https://www.hdblog.it/android/articoli/n674748/brick-night-doomscrolling-bluetooth-prezzo/ · visibile hidden · online true
+tab 2097896881 08:26:27.530 +0.0s [hdblog /android/articoli/n674748/brick-night-doomscrolling-bluetooth-prezzo/] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896881 08:26:27.532 +0.0s [hdblog /android/articoli/n674748/brick-night-doomscrolling-bluetooth-prezzo/] articolo registrato: hdblog n674748 · Brick Night, l'alto prezzo della battaglia co
+tab 2097896882 08:27:04.234 +0.0s [hdblog /green/articoli/n674714/ora-legale-risparmio-2026-consumi/] content script attivo: hdblog · url https://www.hdblog.it/green/articoli/n674714/ora-legale-risparmio-2026-consumi/ · visibile hidden · online true
+tab 2097896882 08:27:04.236 +0.0s [hdblog /green/articoli/n674714/ora-legale-risparmio-2026-consumi/] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896882 08:27:04.237 +0.0s [hdblog /green/articoli/n674714/ora-legale-risparmio-2026-consumi/] articolo registrato: hdblog n674714 · Torna l'ora solare, ma quanto ci ha fatto ris
+tab 2097896889 08:28:40.696 +0.0s [hwupgrade /] content script attivo: hwupgrade · url https://www.hwupgrade.it/ · visibile visible · online true
+tab 2097896889 08:28:40.698 +0.0s [hwupgrade /] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home true · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896889 08:28:40.699 +0.0s [hwupgrade /] home: feed 42 notizie · 42 nodi · dalla 161077 alla 161031 · readyState interactive
+tab 2097896889 08:28:40.699 +0.0s [hwupgrade /] registro: mai raggiunto (fermo) · prima: marker 159727 pending 161076 reached false · dopo: marker 159727 pending 161077 · segnalibro nel feed in posizione -1
+tab 2097896889 08:28:40.699 +0.0s [hwupgrade /] conteggio: avvio · segnalibro 159727 · più recente 161077
+tab 2097896889 08:28:40.699 +0.0s [hwupgrade /] stato: non lette 42+ · segnalibro in pagina false  · feed 42 · doppioni nascosti 0 · fonte feed (conteggio in corso)
+tab 2097896889 08:28:41.033 +0.3s [hwupgrade /] conteggio: HTTP 200 · 162349 caratteri in 333 ms · https://www.hwupgrade.it/news/index.html
+tab 2097896889 08:28:41.034 +0.3s [hwupgrade /] conteggio: pagina 1 · 30 notizie (0 doppioni) · dalla 161077 alla 161053
+tab 2097896889 08:28:41.144 +0.4s [hwupgrade /] conteggio: HTTP 200 · 161591 caratteri in 110 ms · https://www.hwupgrade.it/news/index2.html
+tab 2097896889 08:28:41.146 +0.5s [hwupgrade /] conteggio: pagina 2 · 30 notizie (0 doppioni) · dalla 161055 alla 161007
+tab 2097896889 08:28:41.324 +0.6s [hwupgrade /] conteggio: HTTP 200 · 162754 caratteri in 178 ms · https://www.hwupgrade.it/news/index3.html
+tab 2097896889 08:28:41.326 +0.6s [hwupgrade /] conteggio: pagina 3 · 30 notizie (0 doppioni) · dalla 161015 alla 160985
+tab 2097896889 08:28:41.442 +0.7s [hwupgrade /] conteggio: HTTP 200 · 161820 caratteri in 116 ms · https://www.hwupgrade.it/news/index4.html
+tab 2097896889 08:28:41.443 +0.7s [hwupgrade /] conteggio: pagina 4 · 30 notizie (0 doppioni) · dalla 160983 alla 160956
+tab 2097896889 08:28:41.559 +0.9s [hwupgrade /] conteggio: HTTP 200 · 163022 caratteri in 116 ms · https://www.hwupgrade.it/news/index5.html
+tab 2097896889 08:28:41.560 +0.9s [hwupgrade /] conteggio: pagina 5 · 30 notizie (0 doppioni) · dalla 160952 alla 160911
+tab 2097896889 08:28:41.560 +0.9s [hwupgrade /] conteggio: segnalibro 159727 NON trovato fra 150 notizie (tetto 5 pagine): limite inferiore
+tab 2097896889 08:28:41.561 +0.9s [hwupgrade /] conteggio: esito 150 (limite inferiore)
+tab 2097896889 08:28:41.561 +0.9s [hwupgrade /] stato: non lette 150+ · segnalibro in pagina false  · feed 42 · doppioni nascosti 0 · fonte conteggio
+tab 2097896889 08:28:43.983 +3.3s [hwupgrade /] comando dal pop-up/toast: markAllRead
+tab 2097896889 08:28:43.983 +3.3s [hwupgrade /] segna tutte come lette · archivio false · nuovo segnalibro 161077 · era 159727
+tab 2097896889 08:28:43.984 +3.3s [hwupgrade /] stato: non lette 0 · segnalibro in pagina true (posizione 0) · feed 42 · doppioni nascosti 0 · fonte feed
+tab 2097896949 14:58:22.551 +0.0s [hdblog /] content script attivo: hdblog · url https://www.hdblog.it/ · visibile visible · online true
+tab 2097896949 14:58:22.552 +0.0s [hdblog /] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home true · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896949 14:58:22.552 +0.0s [hdblog /] home: feed 20 notizie · 20 nodi · dalla n674916 alla n674886 · readyState complete
+tab 2097896949 14:58:22.553 +0.0s [hdblog /] registro: mai raggiunto (fermo) · prima: marker n674822 pending n674916 reached false · dopo: marker n674822 pending n674916 · segnalibro nel feed in posizione -1
+tab 2097896949 14:58:22.556 +0.0s [hdblog /] conteggio: avvio · segnalibro n674822 · più recente n674916
+tab 2097896949 14:58:22.556 +0.0s [hdblog /] stato: non lette 20+ · segnalibro in pagina false  · feed 20 · doppioni nascosti 0 · fonte feed (conteggio in corso)
+tab 2097896949 14:58:22.557 +0.0s [hdblog /] conteggio: dalla cache · 49 (esatto) · età 39 s
+tab 2097896949 14:58:22.557 +0.0s [hdblog /] conteggio: esito 49 (esatto)
+tab 2097896949 14:58:22.557 +0.0s [hdblog /] stato: non lette 49 · segnalibro in pagina false  · feed 20 · doppioni nascosti 0 · fonte conteggio
+tab 2097896949 14:58:24.593 +2.0s [hdblog /] comando dal pop-up/toast: scrollToMarker
+tab 2097896949 14:58:24.594 +2.0s [hdblog /] ricerca: avvio · segnalibro n674822 · già in pagina false · feed 20 · pagina archivio null · conteggio {"count":49,"exact":true} · conteggio in corso false
+tab 2097896949 14:58:24.594 +2.0s [hdblog /] ricerca: strada · noScrollSeek → attesa feed, poi archivio
+tab 2097896949 14:58:26.108 +3.6s [hdblog /] ricerca: feed assestato · 20 notizie · segnalibro in pagina false
+tab 2097896949 14:58:26.109 +3.6s [hdblog /] ricerca: non in pagina → archivio da pagina 1 · posizione minima nota 49 · posizione esatta 49
+tab 2097896949 14:58:26.109 +3.6s [hdblog /] archivio: vado a https://www.hdblog.it/page/1/ · flag {"page":1,"ts":1793023106109,"scanned":0,"target":49}
+tab 2097896949 14:58:26.109 +3.6s [hdblog /] ricerca: fine sulla pagina · esito true
+tab 2097896949 14:58:26.215 +0.0s [hdblog /page/1/] content script attivo: hdblog · url https://www.hdblog.it/page/1/ · visibile visible · online true
+tab 2097896949 14:58:26.215 +0.0s [hdblog /page/1/] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896949 14:58:26.217 +0.0s [hdblog /page/1/] archivio: pagina 1 · segnalibro n674822 · flag ricerca {"page":1,"scanned":0,"target":49,"ts":1793023106109} · ricerca attiva true 
+tab 2097896949 14:58:26.218 +0.0s [hdblog /page/1/] archivio: pagina 1 · 100 notizie · dalla n674916 alla n674698 · segnalibro in posizione 40
+tab 2097896949 14:58:26.218 +0.0s [hdblog /page/1/] archivio: segnalibro TROVATO a pagina 1 posizione 40
+tab 2097896949 14:58:26.227 +0.0s [hdblog /page/1/] segnalibro RAGGIUNTO (visto sullo schermo): al prossimo caricamento avanza
+tab 2097896952 14:58:58.651 +0.0s [hdblog /microsoft/articoli/n674897/windows-11-patch-ottobre-bug-fix-bluetooth-gaming/] content script attivo: hdblog · url https://www.hdblog.it/microsoft/articoli/n674897/windows-11-patch-ottobre-bug-fix-bluetooth-gaming/ · visibile hidden · online true
+tab 2097896952 14:58:58.653 +0.0s [hdblog /microsoft/articoli/n674897/windows-11-patch-ottobre-bug-fix-bluetooth-gaming/] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896952 14:58:58.654 +0.0s [hdblog /microsoft/articoli/n674897/windows-11-patch-ottobre-bug-fix-bluetooth-gaming/] articolo registrato: hdblog n674897 · Windows 11, i più importanti bug fix delle pa
+tab 2097896949 14:59:06.744 +0.0s [hdblog /page/1/] content script attivo: hdblog · url https://www.hdblog.it/page/1/ · visibile visible · online true
+tab 2097896949 14:59:06.744 +0.0s [hdblog /page/1/] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896949 14:59:06.747 +0.0s [hdblog /page/1/] archivio: pagina 1 · segnalibro n674822 · flag ricerca null · ricerca attiva false 
+tab 2097896949 14:59:06.748 +0.0s [hdblog /page/1/] archivio: pagina 1 · 100 notizie · dalla n674916 alla n674698 · segnalibro in posizione 40
+tab 2097896949 14:59:06.748 +0.0s [hdblog /page/1/] archivio: segnalibro TROVATO a pagina 1 posizione 40
+tab 2097896949 14:59:09.876 +0.0s [hdblog /page/1/] content script attivo: hdblog · url https://www.hdblog.it/page/1/ · visibile visible · online true
+tab 2097896949 14:59:09.879 +0.0s [hdblog /page/1/] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896949 14:59:09.882 +0.0s [hdblog /page/1/] archivio: pagina 1 · segnalibro n674822 · flag ricerca null · ricerca attiva false 
+tab 2097896949 14:59:09.883 +0.0s [hdblog /page/1/] archivio: pagina 1 · 100 notizie · dalla n674916 alla n674698 · segnalibro in posizione 40
+tab 2097896949 14:59:09.883 +0.0s [hdblog /page/1/] archivio: segnalibro TROVATO a pagina 1 posizione 40
+tab 2097896955 15:01:01.235 +0.0s [hwupgrade /news/web/gemini-notebook-si-gestisce-dalla-chat-google-aggiunge-comandi-per-fonti-e-appunti_161116.html] content script attivo: hwupgrade · url https://www.hwupgrade.it/news/web/gemini-notebook-si-gestisce-dalla-chat-google-aggiunge-comandi-per-fonti-e-appunti_161116.html · visibile hidden · online true
+tab 2097896955 15:01:01.236 +0.0s [hwupgrade /news/web/gemini-notebook-si-gestisce-dalla-chat-google-aggiunge-comandi-per-fonti-e-appunti_161116.html] avvio · impostazioni {"enabled":true,"showToast":true,"trackInterests":true,"hideDupes":true,"freezeMarker":false} · home false · stessa visita (auto-refresh/ricarica pulita) false · ricarica pulita false
+tab 2097896955 15:01:01.237 +0.0s [hwupgrade /news/web/gemini-notebook-si-gestisce-dalla-chat-google-aggiunge-comandi-per-fonti-e-appunti_161116.html] articolo registrato: hwupgrade 161116 · Gemini Notebook si gestisce dalla chat, Googl
